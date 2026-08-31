@@ -1,0 +1,74 @@
+@import "tailwindcss";
+
+@layer base {
+  :root {
+    --font-serif: 'Playfair Display', 'Cormorant Garamond', Georgia, serif;
+    --font-sans: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+    --font-display: 'Cinzel', serif;
+    --font-script: 'Great Vibes', cursive;
+  }
+
+  body {
+    font-family: var(--font-sans);
+    color: #241B20;
+    background-color: #FFF8FA;
+    overflow-x: clip;
+  }
+
+  h1, h2, h3, .font-serif {
+    font-family: var(--font-serif);
+  }
+
+  .font-display {
+    font-family: var(--font-display);
+  }
+
+  .font-script {
+    font-family: var(--font-script);
+  }
+}
+
+/* Custom luxury scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: #FFF0F5;
+}
+::-webkit-scrollbar-thumb {
+  background: #E5A8BE;
+  border-radius: 9999px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #C94F7C;
+}
+
+/* Glassmorphism accents */
+.glass-panel {
+  background: rgba(255, 255, 255, 0.85);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(248, 221, 231, 0.6);
+}
+
+.glass-dark {
+  background: rgba(36, 27, 32, 0.85);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(183, 110, 121, 0.25);
+}
+
+/* Soft luxury shadows */
+.shadow-luxury {
+  box-shadow: 0 10px 30px -5px rgba(201, 79, 124, 0.08), 0 4px 12px -2px rgba(36, 27, 32, 0.04);
+}
+
+.shadow-luxury-lg {
+  box-shadow: 0 20px 40px -10px rgba(201, 79, 124, 0.15), 0 8px 16px -4px rgba(36, 27, 32, 0.06);
+}
+
+.shadow-glow {
+  box-shadow: 0 0 25px rgba(201, 79, 124, 0.25);
+}
+

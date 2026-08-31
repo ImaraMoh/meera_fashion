@@ -1,0 +1,8 @@
+{
+  "name": "Remix Meera Fashion",
+  "description": "Premium luxury fashion boutique for traditional sarees, jewellery, lehengas, and dance performance collections with WhatsApp concierge.",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}

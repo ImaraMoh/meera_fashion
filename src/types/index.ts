@@ -76,6 +76,7 @@ export interface EnquiryOrder {
   customerName: string;
   customerPhone: string;
   customerEmail: string;
+  deliveryCity?: string;
   items: {
     productId: string;
     productName: string;
@@ -118,6 +119,7 @@ export interface Invoice {
   issueDate: string;
   dueDate: string;
   paymentMethod?: string;
+  createdAt?: string;
 }
 
 export interface BrandSettings {

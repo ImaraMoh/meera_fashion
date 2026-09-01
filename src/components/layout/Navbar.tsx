@@ -7,7 +7,6 @@ import {
   Menu,
   X,
   Sparkles,
-  ShieldCheck,
   ChevronDown,
   ArrowRight,
   Gem,
@@ -27,7 +26,6 @@ interface NavbarProps {
   onOpenSelection: () => void;
   onOpenWishlist: () => void;
   onOpenWhatsApp: () => void;
-  onOpenAdmin: () => void;
   searchQuery: string;
   onSearchChange: (q: string) => void;
   settings: BrandSettings;
@@ -42,7 +40,6 @@ export const Navbar: React.FC<NavbarProps> = ({
   onOpenSelection,
   onOpenWishlist,
   onOpenWhatsApp,
-  onOpenAdmin,
   searchQuery,
   onSearchChange,
   settings,
@@ -371,29 +368,6 @@ export const Navbar: React.FC<NavbarProps> = ({
                 </div>
               </button>
 
-              {/* Admin View Button: Desktop & Tablets (Fully visible, bold, unclipped) */}
-              <button
-                onClick={onOpenAdmin}
-                id="header-admin-view-btn"
-                className="hidden md:flex items-center gap-1.5 px-2.5 py-1.5 lg:px-3.5 lg:py-2 rounded-full bg-[#1C1418] hover:bg-[#9E315A] text-white text-xs font-bold shadow-xs hover:shadow-md transition-all duration-200 cursor-pointer group shrink-0 border border-rose-900/40 whitespace-nowrap min-w-fit"
-                title="Open Boutique Admin CMS"
-                aria-label="Admin View Dashboard"
-              >
-                <ShieldCheck className="w-3.5 h-3.5 lg:w-4 lg:h-4 text-rose-300 group-hover:scale-110 transition-transform shrink-0" />
-                <span className="whitespace-nowrap">Admin</span>
-              </button>
-
-              {/* Mobile Quick Admin Button */}
-              <button
-                onClick={onOpenAdmin}
-                id="header-mobile-admin-btn"
-                className="md:hidden flex items-center justify-center p-1.5 sm:p-2 rounded-full bg-[#1C1418] hover:bg-[#9E315A] text-rose-200 hover:text-white border border-rose-900/40 transition-colors cursor-pointer shrink-0 shadow-2xs"
-                title="Open Admin CMS"
-                aria-label="Admin CMS"
-              >
-                <ShieldCheck className="w-4 h-4" />
-              </button>
-
             </div>
           </div>
 
@@ -570,23 +544,6 @@ export const Navbar: React.FC<NavbarProps> = ({
                 >
                   <span className="text-sm">Contact &amp; Studio Visits</span>
                   <ArrowRight className="w-4 h-4 text-rose-300" />
-                </button>
-
-                {/* 6. Admin Portal CMS */}
-                <button
-                  onClick={() => {
-                    onOpenAdmin();
-                    setIsMobileMenuOpen(false);
-                  }}
-                  className="w-full flex items-center justify-between px-4 py-3 rounded-2xl text-sm font-bold bg-[#1C1418] text-white hover:bg-[#9E315A] transition-all cursor-pointer shadow-xs border border-rose-900/30 group"
-                >
-                  <div className="flex items-center gap-2.5">
-                    <ShieldCheck className="w-4.5 h-4.5 text-rose-300 group-hover:scale-110 transition-transform" />
-                    <span>Admin Dashboard (CMS)</span>
-                  </div>
-                  <span className="text-[9px] bg-rose-500/40 text-rose-100 px-2 py-0.5 rounded-full font-bold uppercase tracking-wider">
-                    Manage
-                  </span>
                 </button>
               </div>
 

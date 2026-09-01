@@ -6,7 +6,7 @@ import {
   EnquiryOrder,
   Invoice,
   BrandSettings,
-  ProductCategory
+  ProductCategory,
 } from './types';
 
 import {
@@ -26,7 +26,7 @@ import {
 
 import {
   openWhatsAppChat,
-  generateWhatsAppSingleProductMessage
+  generateWhatsAppSingleProductMessage,
 } from './services/whatsapp';
 
 import { initialBrandSettings } from './data/initialData';
@@ -51,41 +51,67 @@ import { AdminPortal } from './components/admin/AdminPortal';
 import { AdminLoginPage } from './components/admin/AdminLoginPage';
 import { FloatingWhatsApp } from './components/common/FloatingWhatsApp';
 
-export default function App() {
+// Brand
+import { Logo } from './components/brand/Logo';
 
-  // -------------------------------------------------------------
+export default function App() {
+  // =============================================================
   // Route State
-  // -------------------------------------------------------------
+  // =============================================================
 
   const [currentPath, setCurrentPath] = useState<string>(
     window.location.pathname
   );
 
-  // -------------------------------------------------------------
-  // Persistence state
-  // -------------------------------------------------------------
+  // =============================================================
+  // Persistence State
+  // =============================================================
 
   const [products, setProducts] = useState<Product[]>([]);
+
   const [selection, setSelection] = useState<SelectionItem[]>([]);
+
   const [wishlistIds, setWishlistIds] = useState<string[]>([]);
+
   const [enquiries, setEnquiries] = useState<EnquiryOrder[]>([]);
+
   const [invoices, setInvoices] = useState<Invoice[]>([]);
-  const [settings, setSettings] = useState<BrandSettings>(
-    initialBrandSettings
-  );
 
-  // -------------------------------------------------------------
-  // Navigation & UI state
-  // -------------------------------------------------------------
+  const [settings, setSettings] =
+    useState<BrandSettings>(initialBrandSettings);
 
-  const [currentTab, setCurrentTab] = useState<string>('home');
+  // =============================================================
+  // Application Loading State
+  // =============================================================
+
+  const [isInitializing, setIsInitializing] =
+    useState<boolean>(true);
+
+  const [initializationError, setInitializationError] =
+    useState<string | null>(null);
+
+  const [isAdminDataLoading, setIsAdminDataLoading] =
+    useState<boolean>(false);
+
+  const [adminDataError, setAdminDataError] =
+    useState<string | null>(null);
+
+  // =============================================================
+  // Navigation & UI State
+  // =============================================================
+
+  const [currentTab, setCurrentTab] =
+    useState<string>('home');
+
   const [currentCategory, setCurrentCategory] =
     useState<string>('all');
-  const [searchQuery, setSearchQuery] = useState<string>('');
 
-  // -------------------------------------------------------------
-  // Modal state
-  // -------------------------------------------------------------
+  const [searchQuery, setSearchQuery] =
+    useState<string>('');
+
+  // =============================================================
+  // Modal State
+  // =============================================================
 
   const [activeModalProduct, setActiveModalProduct] =
     useState<Product | null>(null);
@@ -96,84 +122,202 @@ export default function App() {
   const [isWishlistOpen, setIsWishlistOpen] =
     useState<boolean>(false);
 
-  // -------------------------------------------------------------
-  // Admin authentication
-  // -------------------------------------------------------------
+  // =============================================================
+  // Admin Authentication
+  // =============================================================
 
   const [isAdminAuthenticated, setIsAdminAuthenticated] =
     useState<boolean>(
-      sessionStorage.getItem('meera_admin_authenticated') === 'true'
+      sessionStorage.getItem(
+        'meera_admin_authenticated'
+      ) === 'true'
     );
 
-  // -------------------------------------------------------------
-  // Browser navigation handling
-  // -------------------------------------------------------------
+  // =============================================================
+  // Browser Navigation Handling
+  // =============================================================
 
   useEffect(() => {
     const handlePopState = () => {
       setCurrentPath(window.location.pathname);
     };
 
-    window.addEventListener('popstate', handlePopState);
+    window.addEventListener(
+      'popstate',
+      handlePopState
+    );
 
     return () => {
-      window.removeEventListener('popstate', handlePopState);
+      window.removeEventListener(
+        'popstate',
+        handlePopState
+      );
     };
   }, []);
 
-  // -------------------------------------------------------------
-  // Simple frontend navigation helper
-  // -------------------------------------------------------------
+  // =============================================================
+  // Navigation Helper
+  // =============================================================
 
   const navigateTo = (path: string) => {
     window.history.pushState({}, '', path);
     setCurrentPath(path);
   };
 
-  // -------------------------------------------------------------
-  // Initialize data
-  // -------------------------------------------------------------
+  // =============================================================
+  // INITIAL PUBLIC DATA
+  // =============================================================
 
   useEffect(() => {
-    const initialize = async () => {
+    let isMounted = true;
+
+    const initializePublicData = async () => {
+      setIsInitializing(true);
+      setInitializationError(null);
+
       try {
+        /*
+         * Only load data required for the public website.
+         *
+         * IMPORTANT:
+         * Enquiries and invoices are NOT loaded here.
+         * They are admin-only data.
+         */
+
         const [
           loadedProducts,
           loadedSelection,
           loadedWishlist,
-          loadedEnquiries,
-          loadedInvoices,
-          loadedSettings
+          loadedSettings,
         ] = await Promise.all([
           loadRemoteProducts(),
           loadRemoteSelection(),
           loadRemoteWishlist(),
-          loadRemoteEnquiries(),
-          loadRemoteInvoices(),
           loadRemoteSettings(),
         ]);
 
-        setProducts(loadedProducts);
-        setSelection(loadedSelection);
-        setWishlistIds(loadedWishlist);
-        setEnquiries(loadedEnquiries);
-        setInvoices(loadedInvoices);
-        setSettings(loadedSettings);
+        if (!isMounted) return;
+
+        setProducts(
+          Array.isArray(loadedProducts)
+            ? loadedProducts
+            : []
+        );
+
+        setSelection(
+          Array.isArray(loadedSelection)
+            ? loadedSelection
+            : []
+        );
+
+        setWishlistIds(
+          Array.isArray(loadedWishlist)
+            ? loadedWishlist
+            : []
+        );
+
+        setSettings(
+          loadedSettings || initialBrandSettings
+        );
 
       } catch (error) {
         console.error(
-          'Failed to load app data from backend',
+          'Failed to load public app data:',
           error
         );
+
+        if (!isMounted) return;
+
+        setInitializationError(
+          'We could not load the boutique data. Please check your internet connection and try again.'
+        );
+      } finally {
+        if (isMounted) {
+          setIsInitializing(false);
+        }
       }
     };
 
-    initialize();
+    initializePublicData();
+
+    return () => {
+      isMounted = false;
+    };
   }, []);
 
-  // -------------------------------------------------------------
-  // Document title
-  // -------------------------------------------------------------
+  // =============================================================
+  // LOAD ADMIN DATA ONLY WHEN ADMIN IS OPEN
+  // =============================================================
+
+  useEffect(() => {
+    if (
+      currentPath !== '/admin' ||
+      !isAdminAuthenticated
+    ) {
+      return;
+    }
+
+    let isMounted = true;
+
+    const initializeAdminData = async () => {
+      setIsAdminDataLoading(true);
+      setAdminDataError(null);
+
+      try {
+        const [
+          loadedEnquiries,
+          loadedInvoices,
+        ] = await Promise.all([
+          loadRemoteEnquiries(),
+          loadRemoteInvoices(),
+        ]);
+
+        if (!isMounted) return;
+
+        setEnquiries(
+          Array.isArray(loadedEnquiries)
+            ? loadedEnquiries
+            : []
+        );
+
+        setInvoices(
+          Array.isArray(loadedInvoices)
+            ? loadedInvoices
+            : []
+        );
+
+      } catch (error) {
+        console.error(
+          'Failed to load admin data:',
+          error
+        );
+
+        if (!isMounted) return;
+
+        setAdminDataError(
+          'Some admin data could not be loaded.'
+        );
+
+      } finally {
+        if (isMounted) {
+          setIsAdminDataLoading(false);
+        }
+      }
+    };
+
+    initializeAdminData();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [
+    currentPath,
+    isAdminAuthenticated,
+  ]);
+
+  // =============================================================
+  // DOCUMENT TITLE
+  // =============================================================
 
   useEffect(() => {
     if (settings?.brandName) {
@@ -188,135 +332,160 @@ export default function App() {
   }, [
     settings?.brandName,
     settings?.tagline,
-    currentPath
+    currentPath,
   ]);
 
-  // -------------------------------------------------------------
-  // Product updates
-  // -------------------------------------------------------------
+  // =============================================================
+  // PRODUCT UPDATES
+  // =============================================================
 
   const handleUpdateProducts = async (
     updated: Product[]
   ) => {
+    // Optimistic UI update
     setProducts(updated);
 
     try {
       await saveRemoteProducts(updated);
     } catch (error) {
       console.error(
-        'Failed to save products to backend',
+        'Failed to save products to backend:',
         error
       );
     }
   };
 
-  // -------------------------------------------------------------
-  // Selection updates
-  // -------------------------------------------------------------
+  // =============================================================
+  // SELECTION UPDATES
+  // =============================================================
 
   const handleUpdateSelection = async (
     updated: SelectionItem[]
   ) => {
+    // Optimistic UI update
     setSelection(updated);
 
     try {
       await saveRemoteSelection(updated);
     } catch (error) {
       console.error(
-        'Failed to save selection to backend',
+        'Failed to save selection to backend:',
         error
       );
     }
   };
 
-  // -------------------------------------------------------------
-  // Wishlist updates
-  // -------------------------------------------------------------
+  // =============================================================
+  // WISHLIST UPDATES
+  // =============================================================
 
   const handleUpdateWishlist = async (
     updated: string[]
   ) => {
+    // Optimistic UI update
     setWishlistIds(updated);
 
     try {
       await saveRemoteWishlist(updated);
     } catch (error) {
       console.error(
-        'Failed to save wishlist to backend',
+        'Failed to save wishlist to backend:',
         error
       );
     }
   };
 
-  // -------------------------------------------------------------
-  // Enquiry updates
-  // -------------------------------------------------------------
+  // =============================================================
+  // ENQUIRY UPDATES
+  // =============================================================
 
   const handleUpdateEnquiries = async (
     updated: EnquiryOrder[]
   ) => {
-    setEnquiries(updated);
+    // Sanitize timestamps and cast as any to bypass strict type mismatch if needed
+    const sanitizedEnquiries = updated.map((item) => ({
+      ...item,
+      cancelledAt:
+        typeof item.cancelledAt === 'string' && item.cancelledAt.trim() !== ''
+          ? item.cancelledAt
+          : undefined, // Using undefined instead of null often satisfies TS better
+      createdAt:
+        typeof item.createdAt === 'string' && item.createdAt.trim() !== ''
+          ? item.createdAt
+          : undefined,
+    })) as EnquiryOrder[];
+
+    // Optimistic UI update
+    setEnquiries(sanitizedEnquiries);
 
     try {
-      await saveRemoteEnquiries(updated);
+      await saveRemoteEnquiries(sanitizedEnquiries);
     } catch (error) {
       console.error(
-        'Failed to save enquiries to backend',
+        'Failed to save enquiries to backend:',
         error
       );
     }
   };
 
-  // -------------------------------------------------------------
-  // Invoice updates
-  // -------------------------------------------------------------
+  // =============================================================
+  // INVOICE UPDATES
+  // =============================================================
 
   const handleUpdateInvoices = async (
     updated: Invoice[]
   ) => {
+    // Optimistic UI update
     setInvoices(updated);
 
     try {
       await saveRemoteInvoices(updated);
     } catch (error) {
       console.error(
-        'Failed to save invoices to backend',
+        'Failed to save invoices to backend:',
         error
       );
     }
   };
 
-  // -------------------------------------------------------------
-  // Settings updates
-  // -------------------------------------------------------------
+  // =============================================================
+  // SETTINGS UPDATES
+  // =============================================================
 
   const handleUpdateSettings = async (
     updated: BrandSettings
   ) => {
+    // Optimistic UI update
     setSettings(updated);
 
     try {
       await saveRemoteSettings(updated);
     } catch (error) {
       console.error(
-        'Failed to save settings to backend',
+        'Failed to save settings to backend:',
         error
       );
     }
   };
 
-  // -------------------------------------------------------------
-  // Admin Login
-  // -------------------------------------------------------------
+  // =============================================================
+  // ADMIN LOGIN
+  // =============================================================
 
   const handleAdminLoginSuccess = () => {
+    sessionStorage.setItem(
+      'meera_admin_authenticated',
+      'true'
+    );
+
     setIsAdminAuthenticated(true);
+
     navigateTo('/admin');
   };
 
-  // -------------------------------------------------------------
-  // Admin Logout
-  // -------------------------------------------------------------
+  // =============================================================
+  // ADMIN LOGOUT
+  // =============================================================
 
   const handleAdminLogout = () => {
     sessionStorage.removeItem(
@@ -325,18 +494,21 @@ export default function App() {
 
     setIsAdminAuthenticated(false);
 
+    // Clear admin-only data from memory
+    setEnquiries([]);
+    setInvoices([]);
+
     navigateTo('/admin');
   };
 
-  // -------------------------------------------------------------
-  // Selection Actions
-  // -------------------------------------------------------------
+  // =============================================================
+  // SELECTION ACTIONS
+  // =============================================================
 
   const handleAddToSelection = (
     product: Product,
     selectedSize?: string
   ) => {
-
     const existingIndex = selection.findIndex(
       (item) =>
         item.productId === product.id &&
@@ -346,13 +518,14 @@ export default function App() {
     let updated: SelectionItem[];
 
     if (existingIndex > -1) {
-
       updated = [...selection];
 
-      updated[existingIndex].quantity += 1;
-
+      updated[existingIndex] = {
+        ...updated[existingIndex],
+        quantity:
+          updated[existingIndex].quantity + 1,
+      };
     } else {
-
       const newItem: SelectionItem = {
         id: `sel-${Date.now()}-${Math.random()
           .toString(36)
@@ -380,7 +553,7 @@ export default function App() {
 
       updated = [
         newItem,
-        ...selection
+        ...selection,
       ];
     }
 
@@ -389,32 +562,39 @@ export default function App() {
     setIsSelectionOpen(true);
   };
 
+  // =============================================================
+  // UPDATE SELECTION QUANTITY
+  // =============================================================
+
   const handleUpdateSelectionQuantity = (
     id: string,
     newQty: number
   ) => {
-
     if (newQty <= 0) {
       handleRemoveSelectionItem(id);
       return;
     }
 
-    const updated = selection.map((it) =>
-      it.id === id
-        ? {
-            ...it,
-            quantity: newQty
-          }
-        : it
+    const updated = selection.map(
+      (item) =>
+        item.id === id
+          ? {
+              ...item,
+              quantity: newQty,
+            }
+          : item
     );
 
     handleUpdateSelection(updated);
   };
 
+  // =============================================================
+  // REMOVE SELECTION ITEM
+  // =============================================================
+
   const handleRemoveSelectionItem = (
     id: string
   ) => {
-
     const updated = selection.filter(
       (item) => item.id !== id
     );
@@ -422,54 +602,56 @@ export default function App() {
     handleUpdateSelection(updated);
   };
 
+  // =============================================================
+  // CLEAR SELECTION
+  // =============================================================
+
   const handleClearSelection = () => {
     handleUpdateSelection([]);
   };
 
-  // -------------------------------------------------------------
-  // Wishlist
-  // -------------------------------------------------------------
+  // =============================================================
+  // WISHLIST
+  // =============================================================
 
   const handleToggleWishlist = (
     productId: string
   ) => {
-
     let updated: string[];
 
     if (wishlistIds.includes(productId)) {
-
       updated = wishlistIds.filter(
         (id) => id !== productId
       );
-
     } else {
-
       updated = [
         ...wishlistIds,
-        productId
+        productId,
       ];
     }
 
     handleUpdateWishlist(updated);
   };
 
-  // -------------------------------------------------------------
-  // WhatsApp
-  // -------------------------------------------------------------
+  // =============================================================
+  // GENERAL WHATSAPP
+  // =============================================================
 
   const handleOpenGeneralWhatsApp = () => {
-
     openWhatsAppChat(
       settings.whatsappNumber,
-      "Hello Meera Fashion 🌸 I am browsing your London digital boutique and would like styling advice on sarees and jewellery."
+      'Hello Meera Fashion 🌸 I am browsing your London digital boutique and would like styling advice on sarees and jewellery.'
     );
   };
+
+  // =============================================================
+  // PRODUCT WHATSAPP
+  // =============================================================
 
   const handleOpenProductWhatsApp = (
     product: Product,
     size?: string
   ) => {
-
     const msg =
       generateWhatsAppSingleProductMessage(
         product,
@@ -487,33 +669,150 @@ export default function App() {
     );
   };
 
-  // -------------------------------------------------------------
-  // Performance Product
-  // -------------------------------------------------------------
+  // =============================================================
+  // PERFORMANCE PRODUCT
+  // =============================================================
 
   const performanceProduct =
     products.find(
-      (p) => p.isDancePerformance
+      (product) =>
+        product.isDancePerformance
     ) || products[0];
 
-  // -------------------------------------------------------------
-  // Wishlist Products
-  // -------------------------------------------------------------
+  // =============================================================
+  // WISHLIST PRODUCTS
+  // =============================================================
 
   const wishlistProducts =
     products.filter(
-      (p) => wishlistIds.includes(p.id)
+      (product) =>
+        wishlistIds.includes(product.id)
     );
+
+  // =============================================================
+  // INITIAL LOADING SCREEN
+  // =============================================================
+
+  if (isInitializing) {
+    return (
+      <div className="fixed inset-0 z-[9999] bg-[#FFF9FA] flex items-center justify-center overflow-hidden">
+
+        {/* Background Decorations */}
+        <div className="absolute inset-0 pointer-events-none">
+
+          <div className="absolute -top-40 -left-40 w-[420px] h-[420px] rounded-full bg-rose-100/50 blur-3xl" />
+
+          <div className="absolute -bottom-40 -right-40 w-[480px] h-[480px] rounded-full bg-pink-100/50 blur-3xl" />
+
+          <div className="absolute top-1/3 right-1/4 w-48 h-48 rounded-full bg-[#E8CFAF]/10 blur-3xl" />
+
+          <div className="absolute bottom-1/4 left-1/4 w-40 h-40 rounded-full bg-[#9E315A]/5 blur-3xl" />
+
+        </div>
+
+        {/* Loading Content */}
+        <div className="relative flex flex-col items-center text-center px-6">
+
+          {/* Logo */}
+          <div className="relative mb-7">
+
+            <div className="absolute inset-0 rounded-full bg-rose-200/50 blur-2xl animate-pulse" />
+
+            <div className="relative w-24 h-24 sm:w-28 sm:h-28 rounded-full bg-white border border-rose-100 shadow-xl flex items-center justify-center">
+
+              <Logo
+                variant="icon-only"
+                size="md"
+              />
+
+            </div>
+
+          </div>
+
+          {/* Brand */}
+          <h1 className="font-serif text-3xl sm:text-4xl font-bold text-[#241B20] tracking-wide">
+            Meera Fashion
+          </h1>
+
+          <p className="mt-2 text-[10px] sm:text-xs text-[#8C5D6C] tracking-[0.3em] uppercase">
+            Traditional Elegance • Modern Luxury
+          </p>
+
+          {/* Loading */}
+          <div className="mt-9 flex flex-col items-center">
+
+            <div className="relative w-52 h-1 bg-rose-100 rounded-full overflow-hidden">
+
+              <div className="absolute inset-y-0 left-0 w-20 bg-gradient-to-r from-[#9E315A] to-[#C94F7C] rounded-full animate-loadingBar" />
+
+            </div>
+
+            <p className="mt-4 text-xs text-[#8C5D6C]">
+              Preparing your boutique...
+            </p>
+
+            <p className="mt-1 text-[10px] text-[#B58A97]">
+              Loading collections &amp; latest styles
+            </p>
+
+          </div>
+
+        </div>
+      </div>
+    );
+  }
+
+  // =============================================================
+  // INITIALIZATION ERROR
+  // =============================================================
+
+  if (initializationError) {
+    return (
+      <div className="fixed inset-0 z-[9999] bg-[#FFF9FA] flex items-center justify-center px-6">
+
+        <div className="w-full max-w-md bg-white rounded-3xl border border-rose-100 shadow-xl p-8 text-center">
+
+          <div className="w-16 h-16 mx-auto rounded-full bg-rose-50 border border-rose-100 flex items-center justify-center mb-5">
+
+            <span className="text-2xl font-bold text-[#9E315A]">
+              !
+            </span>
+
+          </div>
+
+          <h2 className="font-serif text-2xl font-bold text-[#241B20]">
+            Unable to Load Boutique
+          </h2>
+
+          <p className="text-sm text-[#8C5D6C] mt-3 leading-relaxed">
+            {initializationError}
+          </p>
+
+          <button
+            onClick={() =>
+              window.location.reload()
+            }
+            className="mt-6 px-6 py-3 rounded-full bg-[#9E315A] hover:bg-[#832247] text-white text-sm font-bold transition-colors shadow-md"
+          >
+            Try Again
+          </button>
+
+        </div>
+
+      </div>
+    );
+  }
 
   // =============================================================
   // ADMIN ROUTE
   // =============================================================
 
   if (currentPath === '/admin') {
+    // -----------------------------------------------------------
+    // Not Authenticated → Login
+    // -----------------------------------------------------------
 
-    // Not authenticated → Login
     if (!isAdminAuthenticated) {
-
       return (
         <AdminLoginPage
           settings={settings}
@@ -524,30 +823,126 @@ export default function App() {
       );
     }
 
+    // -----------------------------------------------------------
+    // Admin Data Loading
+    // -----------------------------------------------------------
+
+    if (isAdminDataLoading) {
+      return (
+        <div className="min-h-screen bg-[#FFF9FA] flex items-center justify-center">
+
+          <div className="flex flex-col items-center text-center px-6">
+
+            <div className="relative">
+
+              <div className="absolute inset-0 rounded-full bg-rose-200/40 blur-xl animate-pulse" />
+
+              <div className="relative w-20 h-20 rounded-full bg-white border border-rose-100 shadow-lg flex items-center justify-center">
+
+                <Logo
+                  variant="icon-only"
+                  size="sm"
+                />
+
+              </div>
+
+            </div>
+
+            <h2 className="mt-6 font-serif text-2xl font-bold text-[#241B20]">
+              Opening Admin Portal
+            </h2>
+
+            <p className="mt-2 text-xs text-[#8C5D6C]">
+              Loading enquiries, invoices &amp; sales data...
+            </p>
+
+            <div className="mt-6 w-44 h-1 bg-rose-100 rounded-full overflow-hidden">
+
+              <div className="h-full w-1/2 bg-gradient-to-r from-[#9E315A] to-[#C94F7C] rounded-full animate-loadingBar" />
+
+            </div>
+
+          </div>
+
+        </div>
+      );
+    }
+
+    // -----------------------------------------------------------
+    // Admin Data Error
+    // -----------------------------------------------------------
+
+    if (adminDataError) {
+      return (
+        <div className="min-h-screen bg-[#FFF9FA] flex items-center justify-center px-6">
+
+          <div className="w-full max-w-md bg-white rounded-3xl border border-rose-100 shadow-xl p-8 text-center">
+
+            <div className="w-14 h-14 mx-auto rounded-full bg-rose-50 flex items-center justify-center mb-4">
+
+              <span className="text-xl font-bold text-[#9E315A]">
+                !
+              </span>
+
+            </div>
+
+            <h2 className="font-serif text-xl font-bold text-[#241B20]">
+              Admin Data Unavailable
+            </h2>
+
+            <p className="text-xs text-[#8C5D6C] mt-3">
+              {adminDataError}
+            </p>
+
+            <button
+              onClick={() =>
+                window.location.reload()
+              }
+              className="mt-5 px-5 py-2.5 rounded-full bg-[#9E315A] hover:bg-[#832247] text-white text-xs font-bold"
+            >
+              Retry
+            </button>
+
+          </div>
+
+        </div>
+      );
+    }
+
+    // -----------------------------------------------------------
     // Authenticated → Admin Portal
+    // -----------------------------------------------------------
+
     return (
       <div className="min-h-screen bg-[#FFF9FA]">
 
         <AdminPortal
           isOpen={true}
-          onClose={handleAdminLogout}
+
+          onClose={
+            handleAdminLogout
+          }
 
           products={products}
+
           onSaveProducts={
             handleUpdateProducts
           }
 
           enquiries={enquiries}
+
           onSaveEnquiries={
             handleUpdateEnquiries
           }
 
           invoices={invoices}
+
           onSaveInvoices={
             handleUpdateInvoices
           }
 
           settings={settings}
+
           onSaveSettings={
             handleUpdateSettings
           }
@@ -564,7 +959,10 @@ export default function App() {
   return (
     <div className="min-h-screen bg-white text-[#241B20] flex flex-col font-sans selection:bg-[#F8DDE7] selection:text-[#9E315A]">
 
-      {/* 1. Announcement Bar */}
+      {/* =======================================================
+          1. ANNOUNCEMENT BAR
+      ======================================================= */}
+
       <AnnouncementBar
         settings={settings}
         onOpenWhatsApp={
@@ -572,14 +970,15 @@ export default function App() {
         }
       />
 
-      {/* 2. Navigation */}
+      {/* =======================================================
+          2. NAVIGATION
+      ======================================================= */}
+
       <Navbar
         currentTab={currentTab}
 
         onNavigate={(tab, cat) => {
-
           if (tab === 'home') {
-
             setCurrentTab('home');
 
             if (cat) {
@@ -588,7 +987,7 @@ export default function App() {
 
             window.scrollTo({
               top: 0,
-              behavior: 'smooth'
+              behavior: 'smooth',
             });
 
             return;
@@ -598,24 +997,22 @@ export default function App() {
             tab === 'story' ||
             tab === 'about'
           ) {
-
             setCurrentTab('story');
 
             window.scrollTo({
               top: 0,
-              behavior: 'smooth'
+              behavior: 'smooth',
             });
 
             return;
           }
 
           if (tab === 'contact') {
-
             setCurrentTab('contact');
 
             window.scrollTo({
               top: 0,
-              behavior: 'smooth'
+              behavior: 'smooth',
             });
 
             return;
@@ -624,28 +1021,22 @@ export default function App() {
           setCurrentTab('home');
 
           if (cat) {
-
             setCurrentCategory(cat);
-
           } else if (tab === 'offers') {
-
             setCurrentCategory('offers');
           }
 
           setTimeout(() => {
-
             const gridElem =
               document.getElementById(
                 'boutique-catalog'
               );
 
             if (gridElem) {
-
               gridElem.scrollIntoView({
-                behavior: 'smooth'
+                behavior: 'smooth',
               });
             }
-
           }, 50);
         }}
 
@@ -662,7 +1053,7 @@ export default function App() {
             (acc, item) =>
               acc +
               item.quantity *
-              item.unitPrice,
+                item.unitPrice,
             0
           )
         }
@@ -692,7 +1083,10 @@ export default function App() {
         settings={settings}
       />
 
-      {/* 3. Main Views */}
+      {/* =======================================================
+          3. MAIN VIEWS
+      ======================================================= */}
+
       <main className="flex-1">
 
         {(
@@ -704,12 +1098,11 @@ export default function App() {
           currentTab === 'shalwar' ||
           currentTab === 'offers'
         ) ? (
-
           <>
+            {/* Hero */}
 
             <CinematicHero
               onExplore={(cat) => {
-
                 if (cat) {
                   setCurrentCategory(cat);
                 }
@@ -721,7 +1114,7 @@ export default function App() {
 
                 if (gridElem) {
                   gridElem.scrollIntoView({
-                    behavior: 'smooth'
+                    behavior: 'smooth',
                   });
                 }
               }}
@@ -733,11 +1126,12 @@ export default function App() {
               settings={settings}
             />
 
+            {/* Categories */}
+
             <CategoryBoutique
               onSelectCategory={(
                 cat: ProductCategory
               ) => {
-
                 setCurrentCategory(cat);
 
                 const gridElem =
@@ -747,11 +1141,13 @@ export default function App() {
 
                 if (gridElem) {
                   gridElem.scrollIntoView({
-                    behavior: 'smooth'
+                    behavior: 'smooth',
                   });
                 }
               }}
             />
+
+            {/* Performance */}
 
             <PerformanceShowcase
               performanceProduct={
@@ -763,24 +1159,29 @@ export default function App() {
               }
 
               onAddToSelection={(
-                prod
+                product
               ) =>
-                handleAddToSelection(prod)
+                handleAddToSelection(
+                  product
+                )
               }
 
               onOpenWhatsAppForProduct={(
-                prod
+                product
               ) =>
                 handleOpenProductWhatsApp(
-                  prod
+                  product
                 )
               }
             />
+
+            {/* Product Catalog */}
 
             <div id="boutique-catalog">
 
               <ProductGrid
                 products={products}
+
                 currentCategory={
                   currentCategory
                 }
@@ -818,6 +1219,8 @@ export default function App() {
 
             </div>
 
+            {/* Brand Story */}
+
             <BrandStory
               settings={settings}
               onOpenWhatsApp={
@@ -825,18 +1228,19 @@ export default function App() {
               }
             />
 
+            {/* Social */}
+
             <SocialShowcase
               settings={settings}
             />
 
+            {/* Contact */}
+
             <ContactSection
               settings={settings}
             />
-
           </>
-
         ) : currentTab === 'story' ? (
-
           <div className="py-12">
 
             <BrandStory
@@ -851,9 +1255,7 @@ export default function App() {
             />
 
           </div>
-
         ) : (
-
           <div className="py-12">
 
             <ContactSection
@@ -865,10 +1267,12 @@ export default function App() {
 
       </main>
 
-      {/* 4. Footer */}
+      {/* =======================================================
+          4. FOOTER
+      ======================================================= */}
+
       <Footer
         onNavigate={(tab, cat) => {
-
           setCurrentTab(tab);
 
           if (cat) {
@@ -877,7 +1281,7 @@ export default function App() {
 
           window.scrollTo({
             top: 0,
-            behavior: 'smooth'
+            behavior: 'smooth',
           });
         }}
 
@@ -888,7 +1292,10 @@ export default function App() {
         settings={settings}
       />
 
-      {/* 5. Floating WhatsApp */}
+      {/* =======================================================
+          5. FLOATING WHATSAPP
+      ======================================================= */}
+
       <FloatingWhatsApp
         settings={settings}
         onOpenWhatsApp={
@@ -896,9 +1303,11 @@ export default function App() {
         }
       />
 
-      {/* 6. Product Modal */}
-      {activeModalProduct && (
+      {/* =======================================================
+          6. PRODUCT MODAL
+      ======================================================= */}
 
+      {activeModalProduct && (
         <ProductModal
           product={
             activeModalProduct
@@ -909,7 +1318,9 @@ export default function App() {
           }
 
           onClose={() =>
-            setActiveModalProduct(null)
+            setActiveModalProduct(
+              null
+            )
           }
 
           onAddToSelection={
@@ -930,10 +1341,12 @@ export default function App() {
             handleOpenProductWhatsApp
           }
         />
-
       )}
 
-      {/* 7. Selection Drawer */}
+      {/* =======================================================
+          7. SELECTION DRAWER
+      ======================================================= */}
+
       <SelectionDrawer
         isOpen={
           isSelectionOpen
@@ -943,7 +1356,9 @@ export default function App() {
           setIsSelectionOpen(false)
         }
 
-        items={selection}
+        items={
+          selection
+        }
 
         onUpdateQuantity={
           handleUpdateSelectionQuantity
@@ -960,32 +1375,34 @@ export default function App() {
         onRecordEnquiry={(
           newEnquiry
         ) => {
-
           handleUpdateEnquiries([
             newEnquiry,
-            ...enquiries
+            ...enquiries,
           ]);
         }}
 
-        settings={settings}
+        settings={
+          settings
+        }
 
         onContinueShopping={() => {
-
           const gridElem =
             document.getElementById(
               'boutique-catalog'
             );
 
           if (gridElem) {
-
             gridElem.scrollIntoView({
-              behavior: 'smooth'
+              behavior: 'smooth',
             });
           }
         }}
       />
 
-      {/* 8. Wishlist Drawer */}
+      {/* =======================================================
+          8. WISHLIST DRAWER
+      ======================================================= */}
+
       <WishlistDrawer
         isOpen={
           isWishlistOpen
@@ -1004,13 +1421,14 @@ export default function App() {
         }
 
         onMoveToSelection={(
-          prod
+          product
         ) => {
-
-          handleAddToSelection(prod);
+          handleAddToSelection(
+            product
+          );
 
           handleToggleWishlist(
-            prod.id
+            product.id
           );
         }}
 
@@ -1018,7 +1436,9 @@ export default function App() {
           setActiveModalProduct
         }
 
-        settings={settings}
+        settings={
+          settings
+        }
       />
 
     </div>

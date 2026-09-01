@@ -26,6 +26,7 @@ import {
   getAdminTab,
   type AdminTabId,
 } from './adminNavigation';
+import html2pdf from 'html2pdf.js';
 
 // ============================================================
 // SECTIONS
@@ -75,10 +76,10 @@ interface AdminPortalProps {
   onSaveProducts: (products: Product[]) => void;
 
   enquiries: EnquiryOrder[];
-  onSaveEnquiries: (enquiries: EnquiryOrder[]) => void;
+  onSaveEnquiries: (enquiries: EnquiryOrder[]) => void | Promise<void>;
 
   invoices: Invoice[];
-  onSaveInvoices: (invoices: Invoice[]) => void;
+  onSaveInvoices: (invoices: Invoice[]) => void | Promise<void>;
 
   settings: BrandSettings;
   onSaveSettings: (settings: BrandSettings) => void;
@@ -241,6 +242,24 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
     useState(1);
 
   const salesHistoryPerPage = 10;
+  const escapeHtml = (value: string): string => {
+    return value
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#039;');
+  };
+
+  const [statusConfirmation, setStatusConfirmation] = useState<{
+    isOpen: boolean;
+    enquiry: EnquiryOrder | null;
+    newStatus: EnquiryOrder['status'] | null;
+  }>({
+    isOpen: false,
+    enquiry: null,
+    newStatus: null,
+  });
 
   // ============================================================
   // REFS
@@ -527,43 +546,181 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
   };
 
   // ============================================================
-  // ENQUIRY STATUS
+  // ENQUIRY STATUS TRIGGER
   // ============================================================
 
   const handleRequestEnquiryStatusChange = (
     enquiry: EnquiryOrder,
     newStatus: EnquiryOrder['status']
   ) => {
-    if (
-      newStatus === 'Cancelled'
-    ) {
+    // Same status → nothing to update
+    if (enquiry.status === newStatus) {
+      return;
+    }
+
+    // Cancelled → open cancellation modal
+    if (newStatus === 'Cancelled') {
       setCancellationModal({
         isOpen: true,
         enquiry,
         reason: '',
       });
-
       return;
     }
 
-    const updatedEnquiries =
-      enquiries.map(
-        (item) =>
-          item.id === enquiry.id
-            ? {
-                ...item,
-                status: newStatus,
-              }
-            : item
+    // All other statuses → open confirmation modal
+    setStatusConfirmation({
+      isOpen: true,
+      enquiry,
+      newStatus,
+    });
+  };
+
+  // ============================================================
+  // CONFIRM STATUS CHANGE & UPDATE DATABASE
+  // ============================================================
+
+  const handleConfirmEnquiryStatusChange = async () => {
+    const enquiry = statusConfirmation.enquiry;
+    const newStatus = statusConfirmation.newStatus;
+
+    if (!enquiry || !newStatus) {
+      return;
+    }
+
+    // Close confirmation modal
+    setStatusConfirmation({
+      isOpen: false,
+      enquiry: null,
+      newStatus: null,
+    });
+
+    // Create updated enquiry
+    const updatedEnquiry: EnquiryOrder = {
+      ...enquiry,
+      status: newStatus,
+    };
+
+    const updatedEnquiries = enquiries.map((item) => {
+      const baseItem = item.id === enquiry.id ? updatedEnquiry : item;
+      
+      // Clean up fields that might accidentally be empty objects `{}` using `undefined` instead of `null`
+      return {
+        ...baseItem,
+        cancelledAt: typeof baseItem.cancelledAt === 'string' ? baseItem.cancelledAt : undefined,
+        createdAt: typeof baseItem.createdAt === 'string' ? baseItem.createdAt : undefined,
+      };
+    });
+
+    // Save enquiry status to database
+    try {
+      await onSaveEnquiries(updatedEnquiries);
+    } catch (error) {
+      console.error('❌ Failed to save enquiry status:', error);
+      showToast(
+        'Update Failed',
+        'The order status could not be saved to the database.'
+      );
+      return;
+    }
+
+    // Only Paid / Delivered create or update invoice
+    if (newStatus === 'Paid' || newStatus === 'Delivered') {
+      const invoiceNumber = `INV-${enquiry.orderNumber || enquiry.id}`;
+
+      const invoiceItems: Invoice['items'] = (enquiry.items || []).map((item) => {
+        const quantity = Number(item?.quantity) || 1;
+        const unitPrice = Number(item?.price) || 0;
+
+        return {
+          description: typeof item?.productName === 'string' ? item.productName : 'Product',
+          quantity,
+          unitPrice,
+          total: unitPrice * quantity,
+          variant: typeof item?.size === 'string' ? item.size : undefined,
+        };
+      });
+
+      const existingInvoiceIndex = invoices.findIndex(
+        (invoice) =>
+          invoice.enquiryId === enquiry.id ||
+          invoice.invoiceNumber === invoiceNumber
       );
 
-    onSaveEnquiries(
-      updatedEnquiries
-    );
+      let updatedInvoices: Invoice[];
 
+      if (existingInvoiceIndex !== -1) {
+        updatedInvoices = invoices.map((invoice, index) => {
+          if (index !== existingInvoiceIndex) {
+            return invoice;
+          }
+
+          return {
+            ...invoice,
+            enquiryId: enquiry.id,
+            invoiceNumber,
+            customerName: enquiry.customerName || invoice.customerName,
+            customerPhone: enquiry.customerPhone || invoice.customerPhone,
+            customerEmail: enquiry.customerEmail || invoice.customerEmail,
+            items: invoiceItems.length > 0 ? invoiceItems : invoice.items,
+            subtotal: Number(enquiry.subtotal ?? enquiry.total) || invoice.subtotal,
+            discount: Number(enquiry.discount ?? 0),
+            shipping: Number(invoice.shipping ?? 0),
+            total: Number(enquiry.total) || invoice.total,
+            status: newStatus === 'Delivered' ? 'Delivered' : 'Paid',
+            issueDate: invoice.issueDate || new Date().toISOString(),
+            dueDate: invoice.dueDate || new Date().toISOString(),
+            paymentMethod: invoice.paymentMethod,
+            createdAt: invoice.createdAt || new Date().toISOString(),
+          };
+        });
+      } else {
+        const now = new Date().toISOString();
+
+        const newInvoice: Invoice = {
+          id: `INV-${Date.now()}-${enquiry.id}`,
+          enquiryId: enquiry.id,
+          invoiceNumber,
+          customerName: enquiry.customerName || 'Customer',
+          customerPhone: enquiry.customerPhone || '',
+          customerEmail: enquiry.customerEmail || undefined,
+          items: invoiceItems,
+          subtotal: Number(enquiry.subtotal ?? enquiry.total) || 0,
+          discount: Number(enquiry.discount ?? 0) || 0,
+          notes: typeof enquiry.notes === 'string' ? enquiry.notes : undefined,
+          shipping: 0,
+          total: Number(enquiry.total) || 0,
+          status: newStatus === 'Delivered' ? 'Delivered' : 'Paid',
+          issueDate: now,
+          dueDate: now,
+          paymentMethod: undefined,
+          createdAt: now,
+        };
+
+        updatedInvoices = [...invoices, newInvoice];
+      }
+
+      // Save invoice to database
+      try {
+        await onSaveInvoices(updatedInvoices);
+      } catch (error) {
+        console.error('❌ Failed to save invoice:', error);
+        showToast(
+          'Invoice Save Failed',
+          'The order status was saved, but the invoice could not be saved.'
+        );
+        return;
+      }
+    }
+
+    // Success notification
     showToast(
       'Status Updated',
-      `Order ${enquiry.orderNumber || enquiry.id} status changed to ${newStatus}.`
+      `Order ${enquiry.orderNumber || enquiry.id} status changed to ${newStatus}${
+        newStatus === 'Paid' || newStatus === 'Delivered'
+          ? ' and invoice updated.'
+          : '.'
+      }`
     );
   };
 
@@ -1064,32 +1221,504 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
   // INVOICE PDF
   // ============================================================
 
-  const handleDownloadInvoicePDF = (
-    invoice: Invoice
-  ) => {
+  const handleDownloadInvoicePDF = async (invoice: Invoice) => {
     try {
-      const invoiceWindow =
-        window.open(
-          '',
-          '_blank'
-        );
+      const items = Array.isArray(invoice.items)
+        ? invoice.items
+        : [];
 
-      if (!invoiceWindow) {
-        showToast(
-          'Popup Blocked',
-          'Please allow popups to generate the invoice.'
-        );
+      const subtotal = items.reduce(
+        (sum, item) =>
+          sum + Number(item.total || 0),
+        0
+      );
 
+      const total = Number(invoice.total || 0);
+
+      const invoiceElement =
+        document.createElement('div');
+
+      invoiceElement.style.width = '794px';
+      invoiceElement.style.padding = '45px';
+      invoiceElement.style.background = '#ffffff';
+      invoiceElement.style.color = '#241B20';
+      invoiceElement.style.fontFamily =
+        'Arial, Helvetica, sans-serif';
+
+      invoiceElement.innerHTML = `
+        <div style="width:100%;">
+
+          <!-- HEADER -->
+          <div style="
+            display:flex;
+            justify-content:space-between;
+            align-items:flex-start;
+            padding-bottom:25px;
+            border-bottom:2px solid #9E315A;
+          ">
+
+            <div>
+
+              <div style="
+                color:#9E315A;
+                font-size:28px;
+                font-weight:700;
+                margin-bottom:6px;
+              ">
+                Meera's Fashion
+              </div>
+
+              <div style="
+                color:#8C5D6C;
+                font-size:12px;
+              ">
+                Premium Fashion & Collection
+              </div>
+
+            </div>
+
+            <div style="
+              text-align:right;
+            ">
+
+              <div style="
+                color:#9E315A;
+                font-size:28px;
+                font-weight:700;
+              ">
+                INVOICE
+              </div>
+
+              <div style="
+                margin-top:6px;
+                font-size:13px;
+                color:#5A4550;
+              ">
+                #${escapeHtml(
+                  String(
+                    invoice.invoiceNumber || ''
+                  )
+                )}
+              </div>
+
+            </div>
+
+          </div>
+
+
+          <!-- CUSTOMER INFORMATION -->
+          <div style="
+            display:flex;
+            gap:20px;
+            margin-top:30px;
+            margin-bottom:30px;
+          ">
+
+            <div style="
+              flex:1;
+              padding:18px;
+              background:#FFF8FA;
+              border:1px solid #F3DCE5;
+              border-radius:12px;
+            ">
+
+              <div style="
+                color:#9E315A;
+                font-size:10px;
+                font-weight:700;
+                text-transform:uppercase;
+                letter-spacing:1px;
+                margin-bottom:8px;
+              ">
+                BILL TO
+              </div>
+
+              <div style="
+                font-size:13px;
+                line-height:1.7;
+              ">
+
+                <strong>
+                  ${escapeHtml(
+                    String(
+                      invoice.customerName || ''
+                    )
+                  )}
+                </strong>
+
+                <br />
+
+                ${escapeHtml(
+                  String(
+                    invoice.customerPhone || ''
+                  )
+                )}
+
+              </div>
+
+            </div>
+
+
+            <div style="
+              flex:1;
+              padding:18px;
+              background:#FFF8FA;
+              border:1px solid #F3DCE5;
+              border-radius:12px;
+            ">
+
+              <div style="
+                color:#9E315A;
+                font-size:10px;
+                font-weight:700;
+                text-transform:uppercase;
+                letter-spacing:1px;
+                margin-bottom:8px;
+              ">
+                INVOICE DETAILS
+              </div>
+
+              <div style="
+                font-size:13px;
+                line-height:1.7;
+              ">
+
+                <strong>
+                  Invoice Date:
+                </strong>
+
+                ${escapeHtml(
+                  String(
+                    invoice.issueDate || ''
+                  )
+                )}
+
+                <br />
+
+                <strong>
+                  Status:
+                </strong>
+
+                ${escapeHtml(
+                  String(
+                    invoice.status || ''
+                  )
+                )}
+
+              </div>
+
+            </div>
+
+          </div>
+
+
+          <!-- ITEMS TABLE -->
+          <table style="
+            width:100%;
+            border-collapse:collapse;
+            margin-top:20px;
+          ">
+
+            <thead>
+
+              <tr>
+
+                <th style="
+                  text-align:left;
+                  padding:12px;
+                  background:#FFF8FA;
+                  color:#8C5D6C;
+                  font-size:10px;
+                  text-transform:uppercase;
+                  border-bottom:1px solid #EBCFD9;
+                ">
+                  Description
+                </th>
+
+                <th style="
+                  text-align:center;
+                  padding:12px;
+                  background:#FFF8FA;
+                  color:#8C5D6C;
+                  font-size:10px;
+                  text-transform:uppercase;
+                  border-bottom:1px solid #EBCFD9;
+                ">
+                  Qty
+                </th>
+
+                <th style="
+                  text-align:right;
+                  padding:12px;
+                  background:#FFF8FA;
+                  color:#8C5D6C;
+                  font-size:10px;
+                  text-transform:uppercase;
+                  border-bottom:1px solid #EBCFD9;
+                ">
+                  Price
+                </th>
+
+                <th style="
+                  text-align:right;
+                  padding:12px;
+                  background:#FFF8FA;
+                  color:#8C5D6C;
+                  font-size:10px;
+                  text-transform:uppercase;
+                  border-bottom:1px solid #EBCFD9;
+                ">
+                  Total
+                </th>
+
+              </tr>
+
+            </thead>
+
+            <tbody>
+
+              ${items
+                .map(
+                  (item) => `
+                    <tr>
+
+                      <td style="
+                        padding:13px 12px;
+                        font-size:12px;
+                        border-bottom:1px solid #F3E4E9;
+                      ">
+                        ${escapeHtml(
+                          String(
+                            item.description || ''
+                          )
+                        )}
+                      </td>
+
+                      <td style="
+                        padding:13px 12px;
+                        font-size:12px;
+                        text-align:center;
+                        border-bottom:1px solid #F3E4E9;
+                      ">
+                        ${Number(
+                          item.quantity || 0
+                        )}
+                      </td>
+
+                      <td style="
+                        padding:13px 12px;
+                        font-size:12px;
+                        text-align:right;
+                        border-bottom:1px solid #F3E4E9;
+                      ">
+                        £${Number(
+                          item.unitPrice || 0
+                        ).toFixed(2)}
+                      </td>
+
+                      <td style="
+                        padding:13px 12px;
+                        font-size:12px;
+                        text-align:right;
+                        font-weight:700;
+                        color:#9E315A;
+                        border-bottom:1px solid #F3E4E9;
+                      ">
+                        £${Number(
+                          item.total || 0
+                        ).toFixed(2)}
+                      </td>
+
+                    </tr>
+                  `
+                )
+                .join('')}
+
+            </tbody>
+
+          </table>
+
+
+          <!-- TOTALS -->
+          <div style="
+            width:300px;
+            margin-left:auto;
+            margin-top:30px;
+          ">
+
+            <div style="
+              display:flex;
+              justify-content:space-between;
+              padding:7px 0;
+              font-size:12px;
+              color:#5A4550;
+            ">
+
+              <span>
+                Subtotal
+              </span>
+
+              <span>
+                £${subtotal.toFixed(2)}
+              </span>
+
+            </div>
+
+
+            <div style="
+              display:flex;
+              justify-content:space-between;
+              padding:7px 0;
+              font-size:12px;
+              color:#5A4550;
+            ">
+
+              <span>
+                Delivery
+              </span>
+
+              <span style="
+                color:#16803A;
+                font-weight:600;
+              ">
+                Complimentary
+              </span>
+
+            </div>
+
+
+            <div style="
+              display:flex;
+              justify-content:space-between;
+              padding-top:14px;
+              margin-top:8px;
+              border-top:2px solid #9E315A;
+              font-size:18px;
+              font-weight:700;
+              color:#9E315A;
+            ">
+
+              <span>
+                Grand Total
+              </span>
+
+              <span>
+                £${total.toFixed(2)}
+              </span>
+
+            </div>
+
+          </div>
+
+
+          <!-- FOOTER -->
+          <div style="
+            margin-top:55px;
+            padding-top:20px;
+            border-top:1px solid #EBCFD9;
+            text-align:center;
+            color:#8C5D6C;
+            font-size:10px;
+            line-height:1.6;
+          ">
+
+            Thank you for choosing
+            <strong>
+              Meera's Fashion
+            </strong>.
+
+            <br />
+
+            Premium fashion, curated for you.
+
+          </div>
+
+        </div>
+      `;
+
+      document.body.appendChild(
+        invoiceElement
+      );
+
+      const filename =
+        `Meeras-Fashion-Invoice-${String(
+          invoice.invoiceNumber || 'invoice'
+        )}.pdf`;
+
+      await html2pdf()
+        .set({
+          margin: 0,
+          filename,
+          image: {
+            type: 'jpeg',
+            quality: 0.98,
+          },
+          html2canvas: {
+            scale: 2,
+            useCORS: true,
+            backgroundColor: '#ffffff',
+          },
+          jsPDF: {
+            unit: 'mm',
+            format: 'a4',
+            orientation: 'portrait',
+          },
+        })
+        .from(invoiceElement)
+        .save();
+
+      document.body.removeChild(
+        invoiceElement
+      );
+
+    } catch (error) {
+      console.error(
+        'Invoice PDF download failed:',
+        error
+      );
+
+      alert(
+        'Unable to download the invoice PDF. Please try again.'
+      );
+    }
+  };
+
+  const handlePrintInvoice = (invoice: Invoice) => {
+    try {
+      const printWindow = window.open(
+        '',
+        '_blank',
+        'width=900,height=700'
+      );
+
+      if (!printWindow) {
+        alert('Please allow pop-ups to print the invoice.');
         return;
       }
 
-      invoiceWindow.document.write(`
+      const items = Array.isArray(invoice.items)
+        ? invoice.items
+        : [];
+
+      const subtotal = items.reduce(
+        (sum, item) =>
+          sum + Number(item.total || 0),
+        0
+      );
+
+      const total = Number(invoice.total || 0);
+
+      printWindow.document.write(`
         <!DOCTYPE html>
         <html>
           <head>
             <title>
-              Invoice - ${invoice.id}
+              Invoice ${escapeHtml(
+                String(invoice.invoiceNumber || '')
+              )}
             </title>
+
+            <meta charset="UTF-8" />
 
             <style>
               * {
@@ -1097,58 +1726,161 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
               }
 
               body {
-                font-family:
-                  Arial,
-                  Helvetica,
-                  sans-serif;
+                margin: 0;
                 padding: 40px;
+                font-family: Arial, Helvetica, sans-serif;
                 color: #241B20;
+                background: #ffffff;
               }
 
-              h1 {
-                color: #9E315A;
-                margin: 0;
+              .invoice {
+                max-width: 800px;
+                margin: 0 auto;
               }
 
               .header {
                 display: flex;
                 justify-content: space-between;
-                border-bottom:
-                  2px solid #9E315A;
-                padding-bottom: 20px;
-                margin-bottom: 30px;
+                align-items: flex-start;
+                padding-bottom: 25px;
+                border-bottom: 2px solid #9E315A;
               }
 
-              .details {
-                background: #FFF8FA;
-                border: 1px solid #f3dce4;
-                border-radius: 12px;
-                padding: 20px;
-              }
-
-              .total {
-                margin-top: 30px;
-                padding-top: 20px;
-                border-top:
-                  2px solid #9E315A;
-                text-align: right;
-                font-size: 22px;
-                font-weight: bold;
+              .brand {
                 color: #9E315A;
+                font-size: 28px;
+                font-weight: 700;
+                margin-bottom: 5px;
               }
 
-              .footer {
-                margin-top: 40px;
-                padding-top: 20px;
-                border-top:
-                  1px solid #ead6dd;
+              .brand-subtitle {
                 color: #8C5D6C;
                 font-size: 12px;
               }
 
+              .invoice-title {
+                text-align: right;
+              }
+
+              .invoice-title h1 {
+                margin: 0;
+                color: #9E315A;
+                font-size: 28px;
+              }
+
+              .invoice-number {
+                margin-top: 6px;
+                font-size: 13px;
+                color: #5A4550;
+              }
+
+              .info-grid {
+                display: grid;
+                grid-template-columns: 1fr 1fr;
+                gap: 30px;
+                margin: 30px 0;
+              }
+
+              .info-box {
+                padding: 18px;
+                background: #FFF8FA;
+                border: 1px solid #F3DCE5;
+                border-radius: 12px;
+              }
+
+              .label {
+                display: block;
+                font-size: 10px;
+                font-weight: 700;
+                text-transform: uppercase;
+                letter-spacing: 1px;
+                color: #9E315A;
+                margin-bottom: 7px;
+              }
+
+              .value {
+                font-size: 13px;
+                color: #241B20;
+                line-height: 1.7;
+              }
+
+              table {
+                width: 100%;
+                border-collapse: collapse;
+                margin-top: 25px;
+              }
+
+              th {
+                padding: 12px;
+                text-align: left;
+                background: #FFF8FA;
+                color: #8C5D6C;
+                font-size: 10px;
+                text-transform: uppercase;
+                border-bottom: 1px solid #EBCFD9;
+              }
+
+              td {
+                padding: 13px 12px;
+                font-size: 12px;
+                border-bottom: 1px solid #F3E4E9;
+              }
+
+              .text-right {
+                text-align: right;
+              }
+
+              .text-center {
+                text-align: center;
+              }
+
+              .totals {
+                width: 320px;
+                margin-left: auto;
+                margin-top: 25px;
+              }
+
+              .total-row {
+                display: flex;
+                justify-content: space-between;
+                padding: 7px 0;
+                font-size: 12px;
+                color: #5A4550;
+              }
+
+              .grand-total {
+                display: flex;
+                justify-content: space-between;
+                padding-top: 12px;
+                margin-top: 8px;
+                border-top: 2px solid #9E315A;
+                font-size: 18px;
+                font-weight: 700;
+                color: #9E315A;
+              }
+
+              .footer {
+                margin-top: 50px;
+                padding-top: 20px;
+                border-top: 1px solid #EBCFD9;
+                text-align: center;
+                color: #8C5D6C;
+                font-size: 10px;
+                line-height: 1.6;
+              }
+
               @media print {
                 body {
-                  padding: 20px;
+                  padding: 0;
+                }
+
+                .invoice {
+                  max-width: none;
+                }
+
+                @page {
+                  size: A4;
+                  margin: 15mm;
                 }
               }
             </style>
@@ -1156,108 +1888,262 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
 
           <body>
 
-            <div class="header">
-              <div>
-                <h1>
-                  Meera Fashion
-                </h1>
+            <div class="invoice">
 
-                <p>
-                  Official Invoice
-                </p>
+              <!-- HEADER -->
+              <div class="header">
+
+                <div>
+                  <div class="brand">
+                    Meera's Fashion
+                  </div>
+
+                  <div class="brand-subtitle">
+                    Premium Fashion & Collection
+                  </div>
+                </div>
+
+                <div class="invoice-title">
+
+                  <h1>
+                    INVOICE
+                  </h1>
+
+                  <div class="invoice-number">
+                    #${escapeHtml(
+                      String(
+                        invoice.invoiceNumber || ''
+                      )
+                    )}
+                  </div>
+
+                </div>
+
               </div>
 
-              <div>
-                <strong>
-                  Invoice:
-                </strong>
+              <!-- CUSTOMER / INVOICE INFO -->
+              <div class="info-grid">
 
-                ${invoice.id}
+                <div class="info-box">
+
+                  <span class="label">
+                    Bill To
+                  </span>
+
+                  <div class="value">
+
+                    <strong>
+                      ${escapeHtml(
+                        String(
+                          invoice.customerName || ''
+                        )
+                      )}
+                    </strong>
+
+                    <br />
+
+                    ${escapeHtml(
+                      String(
+                        invoice.customerPhone || ''
+                      )
+                    )}
+
+                  </div>
+
+                </div>
+
+                <div class="info-box">
+
+                  <span class="label">
+                    Invoice Details
+                  </span>
+
+                  <div class="value">
+
+                    <strong>
+                      Invoice Date:
+                    </strong>
+
+                    ${escapeHtml(
+                      String(
+                        invoice.issueDate || ''
+                      )
+                    )}
+
+                    <br />
+
+                    <strong>
+                      Status:
+                    </strong>
+
+                    ${escapeHtml(
+                      String(
+                        invoice.status || ''
+                      )
+                    )}
+
+                  </div>
+
+                </div>
+
               </div>
-            </div>
 
-            <div class="details">
+              <!-- ITEMS -->
+              <table>
 
-              <p>
-                <strong>
-                  Invoice Number:
-                </strong>
+                <thead>
+                  <tr>
 
-                ${invoice.id}
-              </p>
+                    <th>
+                      Description
+                    </th>
 
-              <p>
-                <strong>
-                  Status:
-                </strong>
+                    <th class="text-center">
+                      Qty
+                    </th>
 
-                ${
-                  invoice.status ||
-                  '-'
-                }
-              </p>
+                    <th class="text-right">
+                      Price
+                    </th>
 
-              <p>
-                <strong>
-                  Generated:
-                </strong>
+                    <th class="text-right">
+                      Total
+                    </th>
 
-                ${new Date().toLocaleDateString(
-                  'en-GB',
-                  {
-                    day: 'numeric',
-                    month: 'long',
-                    year: 'numeric',
-                  }
-                )}
-              </p>
+                  </tr>
+                </thead>
 
-            </div>
+                <tbody>
 
-            <div class="total">
-              Total:
-              ${
-                invoice.total !==
-                undefined
-                  ? `£${Number(
-                      invoice.total
-                    ).toFixed(2)}`
-                  : '-'
-              }
-            </div>
+                  ${items
+                    .map(
+                      (item) => `
+                        <tr>
 
-            <div class="footer">
-              Meera Fashion
-              <br />
-              Official invoice generated
-              from the Admin Portal.
+                          <td>
+                            ${escapeHtml(
+                              String(
+                                item.description || ''
+                              )
+                            )}
+                          </td>
+
+                          <td class="text-center">
+                            ${Number(
+                              item.quantity || 0
+                            )}
+                          </td>
+
+                          <td class="text-right">
+                            £${Number(
+                              item.unitPrice || 0
+                            ).toFixed(2)}
+                          </td>
+
+                          <td class="text-right">
+                            £${Number(
+                              item.total || 0
+                            ).toFixed(2)}
+                          </td>
+
+                        </tr>
+                      `
+                    )
+                    .join('')}
+
+                </tbody>
+
+              </table>
+
+              <!-- TOTALS -->
+              <div class="totals">
+
+                <div class="total-row">
+
+                  <span>
+                    Subtotal
+                  </span>
+
+                  <span>
+                    £${subtotal.toFixed(2)}
+                  </span>
+
+                </div>
+
+                <div class="total-row">
+
+                  <span>
+                    Delivery
+                  </span>
+
+                  <span>
+                    Complimentary
+                  </span>
+
+                </div>
+
+                <div class="grand-total">
+
+                  <span>
+                    Grand Total
+                  </span>
+
+                  <span>
+                    £${total.toFixed(2)}
+                  </span>
+
+                </div>
+
+              </div>
+
+              <!-- FOOTER -->
+              <div class="footer">
+
+                Thank you for choosing
+                Meera's Fashion.
+
+                <br />
+
+                Premium fashion, curated for you.
+
+              </div>
+
             </div>
 
             <script>
+
               window.onload = function () {
-                window.print();
+
+                setTimeout(function () {
+
+                  window.print();
+
+                  window.onafterprint = function () {
+                    window.close();
+                  };
+
+                }, 300);
+
               };
+
             </script>
 
           </body>
+
         </html>
       `);
 
-      invoiceWindow.document.close();
+      printWindow.document.close();
 
-      showToast(
-        'Invoice Ready',
-        'The invoice has been prepared for printing.'
-      );
     } catch (error) {
+
       console.error(
-        'Invoice generation failed:',
+        'Failed to print invoice:',
         error
       );
 
-      showToast(
-        'Invoice Error',
-        'Unable to generate the invoice.'
+      alert(
+        'Unable to print the invoice. Please try again.'
       );
     }
   };
@@ -2042,6 +2928,10 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
               onDeleteInvoice={
                 handleDeleteInvoice
               }
+
+              onPrintInvoice={
+                handlePrintInvoice
+              }
             />
           )}
 
@@ -2221,14 +3111,49 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
 
       <ConfirmationModal
         config={
-          confirmationModal
-        }
+          statusConfirmation.isOpen &&
+          statusConfirmation.enquiry &&
+          statusConfirmation.newStatus
+            ? {
+                isOpen: true,
 
-        onClose={() =>
-          setConfirmationModal(
-            null
-          )
+                title: 'Confirm Order Status',
+
+                message:
+                  statusConfirmation.newStatus === 'Paid'
+                    ? 'This order will be marked as paid and added to the invoice section.'
+                    : statusConfirmation.newStatus === 'Delivered'
+                      ? 'This order will be marked as delivered. Since the order is already paid, it will remain available in the invoice section.'
+                      : `Are you sure you want to change this order to ${statusConfirmation.newStatus}?`,
+
+                currentStatus:
+                  statusConfirmation.enquiry.status,
+
+                newStatus:
+                  statusConfirmation.newStatus,
+
+                confirmLabel:
+                  'Yes, Update Status',
+
+                cancelLabel:
+                  'Keep Current Status',
+
+                isDestructive:
+                  statusConfirmation.newStatus ===
+                  'Cancelled',
+
+                onConfirm:
+                  handleConfirmEnquiryStatusChange,
+              }
+            : null
         }
+        onClose={() => {
+          setStatusConfirmation({
+            isOpen: false,
+            enquiry: null,
+            newStatus: null,
+          });
+        }}
       />
 
       {/* ========================================================

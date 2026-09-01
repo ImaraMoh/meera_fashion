@@ -102,7 +102,7 @@ export interface Invoice {
   enquiryId?: string;
   customerName: string;
   customerPhone: string;
-  customerEmail: string;
+  customerEmail?: string;
   customerAddress?: string;
   items: {
     description: string;
@@ -113,9 +113,10 @@ export interface Invoice {
   }[];
   subtotal: number;
   discount: number;
+  notes?: string;
   shipping: number;
   total: number;
-  status: 'Draft' | 'Sent' | 'Paid';
+  status: 'Paid' | 'Draft' | 'Sent' | 'Delivered';
   issueDate: string;
   dueDate: string;
   paymentMethod?: string;

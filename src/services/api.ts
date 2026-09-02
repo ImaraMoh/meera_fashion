@@ -7,24 +7,43 @@ import type {
 } from '../types';
 
 import { initialBrandSettings } from '../data/initialData';
-
 import { getDeviceId } from './deviceId';
 
 // =============================================================
 // API CONFIGURATION
 // =============================================================
-
-// Vite environment variable:
+//
+// LOCAL:
 // VITE_API_BASE_URL=http://localhost:4004
 //
-// If it is not provided, the frontend will use the same origin.
+// VERCEL:
+// Leave VITE_API_BASE_URL empty/unset.
 //
-// IMPORTANT:
-// Do NOT include /api here.
-// The individual API paths below already include /api.
+// API paths below already contain /api.
+// =============================================================
+
 const API_BASE = (
-  import.meta.env.VITE_API_BASE_URL || ''
-).replace(/\/$/, '');
+    import.meta.env.VITE_API_BASE_URL || ''
+  )
+    .replace(/\/+$/, '')
+    .replace(/\/api$/, '');
+
+
+// =============================================================
+// BUILD API URL
+// =============================================================
+
+function buildApiUrl(path: string): string {
+  if (path.startsWith('http://') || path.startsWith('https://')) {
+    return path;
+  }
+
+  const normalizedPath = path.startsWith('/')
+    ? path
+    : `/${path}`;
+
+  return `${API_BASE}${normalizedPath}`;
+}
 
 
 // =============================================================
@@ -36,9 +55,7 @@ async function request<T>(
   options: RequestInit = {}
 ): Promise<T> {
 
-  const url = path.startsWith('http')
-    ? path
-    : `${API_BASE}${path}`;
+  const url = buildApiUrl(path);
 
   const response = await fetch(url, {
     ...options,
@@ -46,22 +63,41 @@ async function request<T>(
     headers: {
       'Content-Type': 'application/json',
 
-      // Device identification used by the backend
       'X-Device-Id': getDeviceId(),
 
       ...(options.headers || {}),
     },
   });
 
-  // -----------------------------------------------------------
-  // ERROR HANDLING
-  // -----------------------------------------------------------
+
+  // ===========================================================
+  // NO CONTENT
+  // ===========================================================
+
+  if (response.status === 204) {
+    return undefined as T;
+  }
+
+
+  // ===========================================================
+  // READ RESPONSE SAFELY
+  // ===========================================================
+
+  const contentType =
+    response.headers.get('content-type') || '';
+
+  const isJson =
+    contentType.includes('application/json');
+
+  const responseText =
+    await response.text().catch(() => '');
+
+
+  // ===========================================================
+  // HTTP ERROR
+  // ===========================================================
 
   if (!response.ok) {
-
-    const text = await response
-      .text()
-      .catch(() => '');
 
     console.error(
       `API Request Failed: ${response.status}`,
@@ -69,29 +105,83 @@ async function request<T>(
         path,
         url,
         status: response.status,
-        response: text,
+        contentType,
+        response: responseText,
+      }
+    );
+
+    let message = responseText;
+
+    if (isJson && responseText) {
+      try {
+        const errorData = JSON.parse(responseText);
+
+        message =
+          errorData?.message ||
+          errorData?.error ||
+          responseText;
+      } catch {
+        // Keep raw response text
+      }
+    }
+
+    throw new Error(
+      `Request failed for ${path}: ${response.status} ${message}`
+    );
+  }
+
+
+  // ===========================================================
+  // UNEXPECTED HTML RESPONSE
+  // ===========================================================
+
+  if (!isJson) {
+
+    console.error(
+      'API returned a non-JSON response.',
+      {
+        path,
+        url,
+        status: response.status,
+        contentType,
+        responsePreview:
+          responseText.slice(0, 300),
       }
     );
 
     throw new Error(
-      `Request failed for ${path}: ${response.status} ${text}`
+      `API endpoint returned non-JSON response for ${path}. ` +
+      `Received ${contentType || 'unknown content type'}.`
     );
   }
 
-  // -----------------------------------------------------------
-  // NO CONTENT
-  // -----------------------------------------------------------
 
-  if (response.status === 204) {
-    return undefined as T;
+  // ===========================================================
+  // PARSE JSON
+  // ===========================================================
+
+  try {
+    return JSON.parse(responseText) as T;
+  } catch (error) {
+
+    console.error(
+      'Failed to parse API JSON response.',
+      {
+        path,
+        url,
+        status: response.status,
+        responsePreview:
+          responseText.slice(0, 300),
+        error,
+      }
+    );
+
+    throw new Error(
+      `Invalid JSON response received from ${path}.`
+    );
   }
-
-  // -----------------------------------------------------------
-  // JSON RESPONSE
-  // -----------------------------------------------------------
-
-  return (await response.json()) as T;
 }
+
 
 // =============================================================
 // PRODUCTS
@@ -108,6 +198,21 @@ export async function loadRemoteProducts(): Promise<Product[]> {
     ? response
     : [];
 }
+
+
+export async function saveRemoteProducts(
+  products: Product[]
+): Promise<void> {
+
+  await request<void>(
+    '/api/products',
+    {
+      method: 'POST',
+      body: JSON.stringify(products),
+    }
+  );
+}
+
 
 // =============================================================
 // SELECTION
@@ -127,6 +232,7 @@ export async function loadRemoteSelection(): Promise<
     : [];
 }
 
+
 export async function saveRemoteSelection(
   items: SelectionItem[]
 ): Promise<void> {
@@ -139,6 +245,7 @@ export async function saveRemoteSelection(
     }
   );
 }
+
 
 // =============================================================
 // WISHLIST
@@ -158,6 +265,7 @@ export async function loadRemoteWishlist(): Promise<
     : [];
 }
 
+
 export async function saveRemoteWishlist(
   ids: string[]
 ): Promise<void> {
@@ -170,6 +278,7 @@ export async function saveRemoteWishlist(
     }
   );
 }
+
 
 // =============================================================
 // ENQUIRIES
@@ -189,6 +298,7 @@ export async function loadRemoteEnquiries(): Promise<
     : [];
 }
 
+
 export async function saveRemoteEnquiries(
   enquiries: EnquiryOrder[]
 ): Promise<void> {
@@ -201,6 +311,42 @@ export async function saveRemoteEnquiries(
     }
   );
 }
+
+
+// =============================================================
+// DELETE ENQUIRY
+// =============================================================
+
+export async function deleteEnquiry(
+  enquiryId: string
+) {
+
+  if (!enquiryId) {
+    throw new Error(
+      'Enquiry ID is required.'
+    );
+  }
+
+  const response = await request<{
+    ok: boolean;
+    message?: string;
+  }>(
+    `/api/enquiries/${encodeURIComponent(enquiryId)}`,
+    {
+      method: 'DELETE',
+    }
+  );
+
+  if (!response?.ok) {
+    throw new Error(
+      response?.message ||
+      'Failed to delete enquiry.'
+    );
+  }
+
+  return response;
+}
+
 
 // =============================================================
 // INVOICES
@@ -220,6 +366,7 @@ export async function loadRemoteInvoices(): Promise<
     : [];
 }
 
+
 export async function saveRemoteInvoices(
   invoices: Invoice[]
 ): Promise<void> {
@@ -232,6 +379,7 @@ export async function saveRemoteInvoices(
     }
   );
 }
+
 
 // =============================================================
 // SETTINGS
@@ -262,6 +410,7 @@ export async function loadRemoteSettings(): Promise<
   };
 }
 
+
 export async function saveRemoteSettings(
   settings: BrandSettings
 ): Promise<void> {
@@ -274,6 +423,7 @@ export async function saveRemoteSettings(
     }
   );
 }
+
 
 // =============================================================
 // ANALYTICS TYPES
@@ -296,6 +446,7 @@ export interface AnalyticsSummary {
   productCount: number;
 }
 
+
 export interface RevenueCategory {
 
   category: string;
@@ -304,6 +455,7 @@ export interface RevenueCategory {
 
   percentage: number;
 }
+
 
 export interface TopProduct {
 
@@ -315,6 +467,7 @@ export interface TopProduct {
 
   revenue: number;
 }
+
 
 export interface AnalyticsData {
 
@@ -329,63 +482,16 @@ export interface AnalyticsData {
   topProducts: TopProduct[];
 }
 
+
 // =============================================================
 // LOAD ANALYTICS
 // =============================================================
 
-export const loadAnalytics = async ( range: string = '30' ): Promise<AnalyticsData> => { return request<AnalyticsData>( `/api/analytics?range=${encodeURIComponent(range)}` ); };
+export const loadAnalytics = async (
+  range: string = '30'
+): Promise<AnalyticsData> => {
 
-export async function saveRemoteProducts(
-  products: Product[]
-): Promise<void> {
-
-  await request<void>(
-    '/api/products',
-    {
-      method: 'POST',
-      body: JSON.stringify(products),
-    }
+  return request<AnalyticsData>(
+    `/api/analytics?range=${encodeURIComponent(range)}`
   );
-}
-
-export const deleteEnquiry = async (
-  enquiryId: string
-) => {
-  if (!enquiryId) {
-    throw new Error('Enquiry ID is required.');
-  }
-
-  const response = await fetch(
-    `${API_BASE}/api/enquiries/${encodeURIComponent(enquiryId)}`,
-    {
-      method: 'DELETE',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-    }
-  );
-
-  let data: any = null;
-
-  try {
-    data = await response.json();
-  } catch {
-    data = null;
-  }
-
-  if (!response.ok) {
-    throw new Error(
-      data?.message ||
-      `Failed to delete enquiry (${response.status})`
-    );
-  }
-
-  if (!data?.ok) {
-    throw new Error(
-      data?.message ||
-      'Failed to delete enquiry.'
-    );
-  }
-
-  return data;
 };

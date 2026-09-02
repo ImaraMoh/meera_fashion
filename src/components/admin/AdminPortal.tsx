@@ -123,9 +123,11 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
   onSaveSettings,
 }) => {
 
-  const API_BASE_URL =
-  import.meta.env.VITE_API_BASE_URL ||
-  'http://:4004';
+  const API_BASE_URL = (
+    import.meta.env.VITE_API_BASE_URL || ''
+  )
+    .replace(/\/+$/, '')
+    .replace(/\/api$/, '');
   // ============================================================
   // NAVIGATION
   // ============================================================
@@ -612,7 +614,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
       ===================================================== */
 
       const response = await fetch(
-        `${API_BASE_URL}/enquiries/${enquiry.id}/status`,
+        `${API_BASE_URL}/api/enquiries/${enquiry.id}/status`,
         {
           method: 'PATCH',
           headers: {

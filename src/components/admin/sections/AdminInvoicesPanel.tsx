@@ -109,9 +109,11 @@ interface BackendEnquiry {
    API CONFIG
 ================================================================ */
 
-const API_BASE_URL =
-  import.meta.env.VITE_API_BASE_URL ||
-  'http://:4004';
+const API_BASE_URL = (
+    import.meta.env.VITE_API_BASE_URL || ''
+  )
+    .replace(/\/+$/, '')
+    .replace(/\/api$/, '');
 
 const INVOICE_STATUSES = [
   'paid',
@@ -609,7 +611,7 @@ export const AdminInvoicesPanel: React.FC<
           setError('');
 
           const url =
-            `${API_BASE_URL}/enquiries`;
+            `${API_BASE_URL}/api/enquiries`;
 
           const response =
             await fetch(
@@ -771,7 +773,7 @@ export const AdminInvoicesPanel: React.FC<
     try {
       setIsDeleting(true);
 
-      const url = `${API_BASE_URL}/enquiries/${invoiceId}`;
+      const url = `${API_BASE_URL}/api/enquiries/${invoiceId}`;
       const response = await fetch(url, {
         method: 'DELETE',
         credentials: 'include',

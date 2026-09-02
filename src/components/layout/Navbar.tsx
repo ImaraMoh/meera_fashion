@@ -10,11 +10,9 @@ import {
   ChevronDown,
   ArrowRight,
   Gem,
-  Phone,
-  Mail,
   MapPin
 } from 'lucide-react';
-import { Logo } from '../brand/Logo';
+import LogoImage from '../../assets/logo.png';
 import { BrandSettings } from '../../types';
 
 interface NavbarProps {
@@ -106,17 +104,17 @@ export const Navbar: React.FC<NavbarProps> = ({
       <header
         className={`sticky top-0 z-50 w-full transition-all duration-200 ${
           isScrolled
-            ? 'bg-white/98 shadow-sm border-b border-rose-200/80 py-1.5 sm:py-2'
-            : 'bg-white/95 backdrop-blur-md border-b border-rose-200/60 py-2 sm:py-2.5'
+            ? 'bg-white/98 shadow-sm border-b border-rose-200/80 py-2 sm:py-2.5'
+            : 'bg-white/95 backdrop-blur-md border-b border-rose-200/60 py-2.5 sm:py-3'
         }`}
       >
         <div className="w-full max-w-[1536px] mx-auto px-2 sm:px-4 md:px-5 lg:px-6 xl:px-8">
           
           {/* Main Navigation Row */}
-          <div className="flex items-center justify-between gap-1.5 sm:gap-3 h-11 sm:h-12 min-w-0">
+          <div className="flex items-center justify-between gap-1.5 sm:gap-3 h-14 sm:h-16 min-w-0">
             
-            {/* LEFT: Mobile Menu Toggle & Brand Logo (Zero excess dead space) */}
-            <div className="flex items-center gap-1 sm:gap-2 shrink-0">
+            {/* LEFT: Mobile Menu Toggle & Brand Logo */}
+            <div className="flex items-center gap-2 shrink-0">
               
               {/* Hamburger Button (Mobile Only) */}
               <button
@@ -128,29 +126,32 @@ export const Navbar: React.FC<NavbarProps> = ({
                 aria-label="Open Navigation Menu"
                 id="mobile-menu-toggle-btn"
               >
-                <Menu className="w-5 h-5 sm:w-6 sm:h-6" />
+                <Menu className="w-6 h-6" />
               </button>
 
-              {/* Boutique Logo */}
+              {/* Boutique Logo (Larger size, no circle wrapper) */}
               <button
                 onClick={() => {
                   onNavigate('home');
                   setIsMobileMenuOpen(false);
                   window.scrollTo({ top: 0, behavior: 'smooth' });
                 }}
-                className="text-left focus:outline-none rounded-lg group cursor-pointer flex items-center"
+                className="text-left focus:outline-none rounded-lg group cursor-pointer flex items-center gap-3"
               >
-                {/* Large Desktop Logo */}
-                <div className="hidden xl:block">
-                  <Logo variant="full" size="md" customLogoUrl={settings.customLogoUrl} brandName={settings.brandName} tagline={settings.tagline} />
+                <div className="w-12 h-12 sm:w-14 sm:h-14 flex items-center justify-center overflow-hidden shrink-0">
+                  <img
+                    src={settings.customLogoUrl || LogoImage}
+                    alt={settings.brandName || "Meera Fashion"}
+                    className="w-12 h-12 sm:w-14 sm:h-14 object-contain"
+                  />
                 </div>
-                {/* Compact Desktop Logo for Medium Screens */}
-                <div className="hidden sm:block xl:hidden">
-                  <Logo variant="full" size="sm" customLogoUrl={settings.customLogoUrl} brandName={settings.brandName} tagline={settings.tagline} />
-                </div>
-                {/* Mobile Compact Logo */}
-                <div className="sm:hidden">
-                  <Logo variant="compact" size="sm" customLogoUrl={settings.customLogoUrl} brandName={settings.brandName} tagline={settings.tagline} />
+                <div className="hidden sm:block">
+                  <span className="font-serif text-base sm:text-lg font-bold text-[#241B20] tracking-wide block leading-tight">
+                    {settings.brandName || "Meera Fashion"}
+                  </span>
+                  <span className="text-[10px] sm:text-[11px] text-[#8C5D6C] tracking-[0.2em] uppercase block mt-0.5">
+                    {settings.tagline || "Traditional Elegance"}
+                  </span>
                 </div>
               </button>
             </div>
@@ -275,7 +276,7 @@ export const Navbar: React.FC<NavbarProps> = ({
 
             </nav>
 
-            {/* RIGHT: Header Actions (Fixed, Roomy & 100% Fully Visible) */}
+            {/* RIGHT: Header Actions */}
             <div className="flex items-center gap-1 sm:gap-1.5 md:gap-2 shrink-0 min-w-fit">
               
               {/* Desktop Search Toggle / Input */}
@@ -313,7 +314,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                 )}
               </div>
 
-              {/* Mobile Search Button (Toggles Search Input) */}
+              {/* Mobile Search Button */}
               <button
                 onClick={() => setIsSearchOpen(!isSearchOpen)}
                 className={`md:hidden p-1.5 rounded-full transition-colors cursor-pointer shrink-0 ${
@@ -405,17 +406,25 @@ export const Navbar: React.FC<NavbarProps> = ({
         </div>
       </header>
 
-      {/* FULL-SCREEN MOBILE OVERLAY MENU (Rendered Outside Header to guarantee visibility in front) */}
+      {/* FULL-SCREEN MOBILE OVERLAY MENU */}
       {isMobileMenuOpen && (
         <div className="lg:hidden fixed inset-0 z-[100] flex flex-col bg-[#241B20]/60 backdrop-blur-sm animate-in fade-in duration-200">
           
-          {/* Menu Card Content (Sliding from Top) */}
           <div className="bg-white w-full max-h-[90vh] shadow-2xl rounded-b-3xl flex flex-col overflow-hidden animate-in slide-in-from-top duration-300">
             
             {/* Top Bar of Mobile Menu with Close Button */}
             <div className="flex items-center justify-between px-4 py-3.5 border-b border-rose-100 bg-[#FFF9FA]">
-              <div className="flex items-center gap-2">
-                <Logo variant="compact" size="sm" customLogoUrl={settings.customLogoUrl} brandName={settings.brandName} tagline={settings.tagline} />
+              <div className="flex items-center gap-2.5">
+                <div className="w-10 h-10 flex items-center justify-center overflow-hidden shrink-0">
+                  <img
+                    src={settings.customLogoUrl || LogoImage}
+                    alt={settings.brandName || "Meera Fashion"}
+                    className="w-10 h-10 object-contain"
+                  />
+                </div>
+                <span className="font-serif text-base font-bold text-[#241B20]">
+                  {settings.brandName || "Meera Fashion"}
+                </span>
               </div>
 
               <button
@@ -430,7 +439,6 @@ export const Navbar: React.FC<NavbarProps> = ({
             {/* Scrollable Navigation List */}
             <div className="overflow-y-auto overscroll-contain p-4 sm:p-5 space-y-4">
               
-              {/* Main Navigation Links */}
               <div className="space-y-1.5">
                 
                 {/* 1. Home */}
@@ -572,7 +580,6 @@ export const Navbar: React.FC<NavbarProps> = ({
             </div>
           </div>
 
-          {/* Backdrop Click Dismiss */}
           <div
             className="flex-1 cursor-pointer"
             onClick={() => setIsMobileMenuOpen(false)}

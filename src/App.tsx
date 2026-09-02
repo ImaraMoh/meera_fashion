@@ -51,8 +51,8 @@ import { AdminPortal } from './components/admin/AdminPortal';
 import { AdminLoginPage } from './components/admin/AdminLoginPage';
 import { FloatingWhatsApp } from './components/common/FloatingWhatsApp';
 
-// Brand
-import { Logo } from './components/brand/Logo';
+// Brand Logo Asset
+import LogoImage from './assets/logo.png';
 
 export default function App() {
   // =============================================================
@@ -176,14 +176,6 @@ export default function App() {
       setInitializationError(null);
 
       try {
-        /*
-         * Only load data required for the public website.
-         *
-         * IMPORTANT:
-         * Enquiries and invoices are NOT loaded here.
-         * They are admin-only data.
-         */
-
         const [
           loadedProducts,
           loadedSelection,
@@ -342,11 +334,136 @@ export default function App() {
   const handleUpdateProducts = async (
     updated: Product[]
   ) => {
-    // Optimistic UI update
-    setProducts(updated);
+    const now = new Date().toISOString();
+
+    const sanitizedProducts: Product[] = updated.map(
+      (product) => {
+        const createdAt =
+          typeof product.createdAt === 'string' &&
+          product.createdAt.trim() !== ''
+            ? product.createdAt
+            : now;
+
+        const updatedAt = now;
+
+        return {
+          ...product,
+          id:
+            typeof product.id === 'string' &&
+            product.id.trim() !== ''
+              ? product.id
+              : `prod-${Date.now()}-${Math.random()
+                  .toString(36)
+                  .slice(2, 8)}`,
+
+          name:
+            typeof product.name === 'string'
+              ? product.name.trim()
+              : '',
+
+          slug:
+            typeof product.slug === 'string' &&
+            product.slug.trim() !== ''
+              ? product.slug
+              : product.name
+                  .toLowerCase()
+                  .trim()
+                  .replace(/[^a-z0-9]+/g, '-')
+                  .replace(/^-+|-+$/g, ''),
+
+          category:
+            product.category || 'sarees',
+
+          subcategory:
+            typeof product.subcategory === 'string'
+              ? product.subcategory
+              : '',
+
+          description:
+            typeof product.description === 'string'
+              ? product.description
+              : '',
+
+          shortDescription:
+            typeof product.shortDescription === 'string'
+              ? product.shortDescription
+              : '',
+
+          material:
+            typeof product.material === 'string'
+              ? product.material
+              : '',
+
+          color:
+            typeof product.color === 'string'
+              ? product.color
+              : '',
+
+          stockStatus:
+            product.stockStatus || 'In Stock',
+
+          stockQuantity:
+            typeof product.stockQuantity === 'number'
+              ? product.stockQuantity
+              : 0,
+
+          price:
+            typeof product.price === 'number'
+              ? product.price
+              : 0,
+
+          images: {
+            main:
+              typeof product.images?.main === 'string'
+                ? product.images.main
+                : '',
+
+            front:
+              typeof product.images?.front === 'string'
+                ? product.images.front
+                : undefined,
+
+            back:
+              typeof product.images?.back === 'string'
+                ? product.images.back
+                : undefined,
+
+            detail:
+              typeof product.images?.detail === 'string'
+                ? product.images.detail
+                : undefined,
+
+            wearing:
+              typeof product.images?.wearing === 'string'
+                ? product.images.wearing
+                : undefined,
+          },
+
+          isPreOrder: Boolean(product.isPreOrder),
+          isFeatured: Boolean(product.isFeatured),
+          isNewArrival: Boolean(product.isNewArrival),
+          isOffer: Boolean(product.isOffer),
+          isDancePerformance:
+            Boolean(product.isDancePerformance),
+
+          saleEnabled:
+            product.saleEnabled !== false,
+
+          rentalEnabled:
+            Boolean(product.rentalEnabled),
+
+          createdAt,
+          updatedAt,
+        };
+      }
+    );
+
+    setProducts(sanitizedProducts);
 
     try {
-      await saveRemoteProducts(updated);
+      await saveRemoteProducts(
+        sanitizedProducts
+      );
     } catch (error) {
       console.error(
         'Failed to save products to backend:',
@@ -362,7 +479,6 @@ export default function App() {
   const handleUpdateSelection = async (
     updated: SelectionItem[]
   ) => {
-    // Optimistic UI update
     setSelection(updated);
 
     try {
@@ -382,7 +498,6 @@ export default function App() {
   const handleUpdateWishlist = async (
     updated: string[]
   ) => {
-    // Optimistic UI update
     setWishlistIds(updated);
 
     try {
@@ -396,26 +511,24 @@ export default function App() {
   };
 
   // =============================================================
-  // ENQUIRY UPDATES
+  // ENQUIRY UPDATES (Sanitized to prevent timestamp {} errors)
   // =============================================================
 
   const handleUpdateEnquiries = async (
     updated: EnquiryOrder[]
   ) => {
-    // Sanitize timestamps and cast as any to bypass strict type mismatch if needed
     const sanitizedEnquiries = updated.map((item) => ({
       ...item,
       cancelledAt:
         typeof item.cancelledAt === 'string' && item.cancelledAt.trim() !== ''
           ? item.cancelledAt
-          : undefined, // Using undefined instead of null often satisfies TS better
+          : undefined,
       createdAt:
         typeof item.createdAt === 'string' && item.createdAt.trim() !== ''
           ? item.createdAt
           : undefined,
     })) as EnquiryOrder[];
 
-    // Optimistic UI update
     setEnquiries(sanitizedEnquiries);
 
     try {
@@ -435,7 +548,6 @@ export default function App() {
   const handleUpdateInvoices = async (
     updated: Invoice[]
   ) => {
-    // Optimistic UI update
     setInvoices(updated);
 
     try {
@@ -455,7 +567,6 @@ export default function App() {
   const handleUpdateSettings = async (
     updated: BrandSettings
   ) => {
-    // Optimistic UI update
     setSettings(updated);
 
     try {
@@ -488,9 +599,12 @@ export default function App() {
   // =============================================================
 
   const handleAdminLogout = () => {
-    sessionStorage.removeItem(
-      'meera_admin_authenticated'
-    );
+    console.log('==========================================');
+    console.log('🔐 MEERA FASHION ADMIN LOGOUT');
+    console.log('==========================================');
+
+    sessionStorage.removeItem('meera_admin_authenticated');
+    localStorage.removeItem('meera_admin_authenticated');
 
     setIsAdminAuthenticated(false);
 
@@ -498,7 +612,13 @@ export default function App() {
     setEnquiries([]);
     setInvoices([]);
 
+    // Stay on /admin.
+    // Since authentication is now false,
+    // App.tsx automatically renders AdminLoginPage.
     navigateTo('/admin');
+
+    console.log('✅ Admin authentication cleared');
+    console.log('➡️ Returning to AdminLoginPage');
   };
 
   // =============================================================
@@ -690,73 +810,53 @@ export default function App() {
     );
 
   // =============================================================
-  // INITIAL LOADING SCREEN
+  // PREMIUM INITIAL LOADING SCREEN
   // =============================================================
 
   if (isInitializing) {
     return (
-      <div className="fixed inset-0 z-[9999] bg-[#FFF9FA] flex items-center justify-center overflow-hidden">
-
-        {/* Background Decorations */}
-        <div className="absolute inset-0 pointer-events-none">
-
-          <div className="absolute -top-40 -left-40 w-[420px] h-[420px] rounded-full bg-rose-100/50 blur-3xl" />
-
-          <div className="absolute -bottom-40 -right-40 w-[480px] h-[480px] rounded-full bg-pink-100/50 blur-3xl" />
-
-          <div className="absolute top-1/3 right-1/4 w-48 h-48 rounded-full bg-[#E8CFAF]/10 blur-3xl" />
-
-          <div className="absolute bottom-1/4 left-1/4 w-40 h-40 rounded-full bg-[#9E315A]/5 blur-3xl" />
-
+      <div className="fixed inset-0 z-[9999] bg-[#1C1418] flex items-center justify-center overflow-hidden">
+        {/* Luxury Background Glows */}
+        <div className="absolute inset-0 pointer-events-none opacity-40">
+          <div className="absolute -top-48 -left-48 w-[500px] h-[500px] rounded-full bg-[#9E315A]/20 blur-3xl animate-pulse" />
+          <div className="absolute -bottom-48 -right-48 w-[550px] h-[550px] rounded-full bg-[#E8CFAF]/10 blur-3xl" />
         </div>
 
-        {/* Loading Content */}
-        <div className="relative flex flex-col items-center text-center px-6">
-
-          {/* Logo */}
-          <div className="relative mb-7">
-
-            <div className="absolute inset-0 rounded-full bg-rose-200/50 blur-2xl animate-pulse" />
-
-            <div className="relative w-24 h-24 sm:w-28 sm:h-28 rounded-full bg-white border border-rose-100 shadow-xl flex items-center justify-center">
-
-              <Logo
-                variant="icon-only"
-                size="md"
+        <div className="relative flex flex-col items-center text-center px-6 max-w-md">
+          {/* Large Premium Logo */}
+          <div className="relative mb-8 group">
+            <div className="absolute inset-0 rounded-full bg-[#9E315A]/30 blur-3xl animate-ping" />
+            <div className="relative w-32 h-32 sm:w-36 sm:h-36 flex items-center justify-center p-3">
+              <img
+                src={settings.customLogoUrl || LogoImage}
+                alt={settings.brandName || "Meera Fashion"}
+                className="w-full h-full object-contain drop-shadow-2xl animate-pulse"
               />
-
             </div>
-
           </div>
 
-          {/* Brand */}
-          <h1 className="font-serif text-3xl sm:text-4xl font-bold text-[#241B20] tracking-wide">
-            Meera Fashion
+          <h1 className="font-serif text-3xl sm:text-4xl font-bold text-white tracking-widest uppercase">
+            {settings.brandName || "Meera Fashion"}
           </h1>
 
-          <p className="mt-2 text-[10px] sm:text-xs text-[#8C5D6C] tracking-[0.3em] uppercase">
-            Traditional Elegance • Modern Luxury
-          </p>
-
-          {/* Loading */}
-          <div className="mt-9 flex flex-col items-center">
-
-            <div className="relative w-52 h-1 bg-rose-100 rounded-full overflow-hidden">
-
-              <div className="absolute inset-y-0 left-0 w-20 bg-gradient-to-r from-[#9E315A] to-[#C94F7C] rounded-full animate-loadingBar" />
-
-            </div>
-
-            <p className="mt-4 text-xs text-[#8C5D6C]">
-              Preparing your boutique...
-            </p>
-
-            <p className="mt-1 text-[10px] text-[#B58A97]">
-              Loading collections &amp; latest styles
-            </p>
-
+          <div className="flex items-center gap-3 mt-3">
+            <span className="h-[1px] w-10 bg-[#E8CFAF]/40" />
+            <span className="text-[10px] sm:text-xs text-[#E8CFAF] tracking-[0.35em] uppercase font-semibold">
+              {settings.tagline || "Traditional Elegance"}
+            </span>
+            <span className="h-[1px] w-10 bg-[#E8CFAF]/40" />
           </div>
 
+          {/* Premium Loading Progress Bar */}
+          <div className="mt-12 w-64 flex flex-col items-center">
+            <div className="relative w-full h-1 bg-white/10 rounded-full overflow-hidden shadow-inner">
+              <div className="absolute inset-y-0 left-0 w-1/2 bg-gradient-to-r from-[#9E315A] via-[#C94F7C] to-[#E8CFAF] rounded-full animate-loadingBar" />
+            </div>
+            
+            <p className="mt-5 text-xs font-mono text-rose-200/70 tracking-widest uppercase">
+              Entering London Boutique...
+            </p>
+          </div>
         </div>
       </div>
     );
@@ -769,15 +869,11 @@ export default function App() {
   if (initializationError) {
     return (
       <div className="fixed inset-0 z-[9999] bg-[#FFF9FA] flex items-center justify-center px-6">
-
         <div className="w-full max-w-md bg-white rounded-3xl border border-rose-100 shadow-xl p-8 text-center">
-
           <div className="w-16 h-16 mx-auto rounded-full bg-rose-50 border border-rose-100 flex items-center justify-center mb-5">
-
             <span className="text-2xl font-bold text-[#9E315A]">
               !
             </span>
-
           </div>
 
           <h2 className="font-serif text-2xl font-bold text-[#241B20]">
@@ -792,13 +888,11 @@ export default function App() {
             onClick={() =>
               window.location.reload()
             }
-            className="mt-6 px-6 py-3 rounded-full bg-[#9E315A] hover:bg-[#832247] text-white text-sm font-bold transition-colors shadow-md"
+            className="mt-6 px-6 py-3 rounded-full bg-[#9E315A] hover:bg-[#832247] text-white text-sm font-bold transition-colors shadow-md cursor-pointer"
           >
             Try Again
           </button>
-
         </div>
-
       </div>
     );
   }
@@ -808,10 +902,6 @@ export default function App() {
   // =============================================================
 
   if (currentPath === '/admin') {
-    // -----------------------------------------------------------
-    // Not Authenticated → Login
-    // -----------------------------------------------------------
-
     if (!isAdminAuthenticated) {
       return (
         <AdminLoginPage
@@ -823,67 +913,45 @@ export default function App() {
       );
     }
 
-    // -----------------------------------------------------------
-    // Admin Data Loading
-    // -----------------------------------------------------------
-
     if (isAdminDataLoading) {
       return (
-        <div className="min-h-screen bg-[#FFF9FA] flex items-center justify-center">
-
+        <div className="min-h-screen bg-[#1C1418] flex items-center justify-center">
           <div className="flex flex-col items-center text-center px-6">
-
-            <div className="relative">
-
-              <div className="absolute inset-0 rounded-full bg-rose-200/40 blur-xl animate-pulse" />
-
-              <div className="relative w-20 h-20 rounded-full bg-white border border-rose-100 shadow-lg flex items-center justify-center">
-
-                <Logo
-                  variant="icon-only"
-                  size="sm"
+            <div className="relative mb-6">
+              <div className="absolute inset-0 rounded-full bg-[#9E315A]/30 blur-2xl animate-pulse" />
+              <div className="relative w-28 h-28 flex items-center justify-center">
+                <img
+                  src={settings.customLogoUrl || LogoImage}
+                  alt={settings.brandName || "Meera Fashion"}
+                  className="w-24 h-24 object-contain"
                 />
-
               </div>
-
             </div>
 
-            <h2 className="mt-6 font-serif text-2xl font-bold text-[#241B20]">
+            <h2 className="font-serif text-2xl font-bold text-white tracking-wide">
               Opening Admin Portal
             </h2>
 
-            <p className="mt-2 text-xs text-[#8C5D6C]">
-              Loading enquiries, invoices &amp; sales data...
+            <p className="mt-2 text-xs text-rose-200/70">
+              Synchronizing enquiries, invoices &amp; sales data...
             </p>
 
-            <div className="mt-6 w-44 h-1 bg-rose-100 rounded-full overflow-hidden">
-
+            <div className="mt-6 w-48 h-1 bg-white/10 rounded-full overflow-hidden">
               <div className="h-full w-1/2 bg-gradient-to-r from-[#9E315A] to-[#C94F7C] rounded-full animate-loadingBar" />
-
             </div>
-
           </div>
-
         </div>
       );
     }
 
-    // -----------------------------------------------------------
-    // Admin Data Error
-    // -----------------------------------------------------------
-
     if (adminDataError) {
       return (
         <div className="min-h-screen bg-[#FFF9FA] flex items-center justify-center px-6">
-
           <div className="w-full max-w-md bg-white rounded-3xl border border-rose-100 shadow-xl p-8 text-center">
-
             <div className="w-14 h-14 mx-auto rounded-full bg-rose-50 flex items-center justify-center mb-4">
-
               <span className="text-xl font-bold text-[#9E315A]">
                 !
               </span>
-
             </div>
 
             <h2 className="font-serif text-xl font-bold text-[#241B20]">
@@ -898,56 +966,39 @@ export default function App() {
               onClick={() =>
                 window.location.reload()
               }
-              className="mt-5 px-5 py-2.5 rounded-full bg-[#9E315A] hover:bg-[#832247] text-white text-xs font-bold"
+              className="mt-5 px-5 py-2.5 rounded-full bg-[#9E315A] hover:bg-[#832247] text-white text-xs font-bold cursor-pointer"
             >
               Retry
             </button>
-
           </div>
-
         </div>
       );
     }
 
-    // -----------------------------------------------------------
-    // Authenticated → Admin Portal
-    // -----------------------------------------------------------
-
     return (
       <div className="min-h-screen bg-[#FFF9FA]">
-
         <AdminPortal
           isOpen={true}
-
           onClose={
             handleAdminLogout
           }
-
           products={products}
-
           onSaveProducts={
             handleUpdateProducts
           }
-
           enquiries={enquiries}
-
           onSaveEnquiries={
             handleUpdateEnquiries
           }
-
           invoices={invoices}
-
           onSaveInvoices={
             handleUpdateInvoices
           }
-
           settings={settings}
-
           onSaveSettings={
             handleUpdateSettings
           }
         />
-
       </div>
     );
   }
@@ -958,11 +1009,6 @@ export default function App() {
 
   return (
     <div className="min-h-screen bg-white text-[#241B20] flex flex-col font-sans selection:bg-[#F8DDE7] selection:text-[#9E315A]">
-
-      {/* =======================================================
-          1. ANNOUNCEMENT BAR
-      ======================================================= */}
-
       <AnnouncementBar
         settings={settings}
         onOpenWhatsApp={
@@ -970,13 +1016,8 @@ export default function App() {
         }
       />
 
-      {/* =======================================================
-          2. NAVIGATION
-      ======================================================= */}
-
       <Navbar
         currentTab={currentTab}
-
         onNavigate={(tab, cat) => {
           if (tab === 'home') {
             setCurrentTab('home');
@@ -1039,7 +1080,6 @@ export default function App() {
             }
           }, 50);
         }}
-
         selectionCount={
           selection.reduce(
             (acc, item) =>
@@ -1047,7 +1087,6 @@ export default function App() {
             0
           )
         }
-
         selectionTotal={
           selection.reduce(
             (acc, item) =>
@@ -1057,38 +1096,26 @@ export default function App() {
             0
           )
         }
-
         wishlistCount={
           wishlistIds.length
         }
-
         onOpenSelection={() =>
           setIsSelectionOpen(true)
         }
-
         onOpenWishlist={() =>
           setIsWishlistOpen(true)
         }
-
         onOpenWhatsApp={
           handleOpenGeneralWhatsApp
         }
-
         searchQuery={searchQuery}
-
         onSearchChange={
           setSearchQuery
         }
-
         settings={settings}
       />
 
-      {/* =======================================================
-          3. MAIN VIEWS
-      ======================================================= */}
-
       <main className="flex-1">
-
         {(
           currentTab === 'home' ||
           currentTab === 'sarees' ||
@@ -1099,8 +1126,6 @@ export default function App() {
           currentTab === 'offers'
         ) ? (
           <>
-            {/* Hero */}
-
             <CinematicHero
               onExplore={(cat) => {
                 if (cat) {
@@ -1118,15 +1143,11 @@ export default function App() {
                   });
                 }
               }}
-
               onOpenWhatsApp={
                 handleOpenGeneralWhatsApp
               }
-
               settings={settings}
             />
-
-            {/* Categories */}
 
             <CategoryBoutique
               onSelectCategory={(
@@ -1147,17 +1168,13 @@ export default function App() {
               }}
             />
 
-            {/* Performance */}
-
             <PerformanceShowcase
               performanceProduct={
                 performanceProduct
               }
-
               onQuickView={
                 setActiveModalProduct
               }
-
               onAddToSelection={(
                 product
               ) =>
@@ -1165,7 +1182,6 @@ export default function App() {
                   product
                 )
               }
-
               onOpenWhatsAppForProduct={(
                 product
               ) =>
@@ -1175,51 +1191,36 @@ export default function App() {
               }
             />
 
-            {/* Product Catalog */}
-
             <div id="boutique-catalog">
-
               <ProductGrid
                 products={products}
-
                 currentCategory={
                   currentCategory
                 }
-
                 onSelectCategory={
                   setCurrentCategory
                 }
-
                 onQuickView={
                   setActiveModalProduct
                 }
-
                 onAddToSelection={
                   handleAddToSelection
                 }
-
                 onToggleWishlist={
                   handleToggleWishlist
                 }
-
                 wishlistIds={
                   wishlistIds
                 }
-
                 onOpenWhatsApp={
                   handleOpenProductWhatsApp
                 }
-
                 searchQuery={
                   searchQuery
                 }
-
                 settings={settings}
               />
-
             </div>
-
-            {/* Brand Story */}
 
             <BrandStory
               settings={settings}
@@ -1228,13 +1229,9 @@ export default function App() {
               }
             />
 
-            {/* Social */}
-
             <SocialShowcase
               settings={settings}
             />
-
-            {/* Contact */}
 
             <ContactSection
               settings={settings}
@@ -1242,7 +1239,6 @@ export default function App() {
           </>
         ) : currentTab === 'story' ? (
           <div className="py-12">
-
             <BrandStory
               settings={settings}
               onOpenWhatsApp={
@@ -1253,23 +1249,15 @@ export default function App() {
             <SocialShowcase
               settings={settings}
             />
-
           </div>
         ) : (
           <div className="py-12">
-
             <ContactSection
               settings={settings}
             />
-
           </div>
         )}
-
       </main>
-
-      {/* =======================================================
-          4. FOOTER
-      ======================================================= */}
 
       <Footer
         onNavigate={(tab, cat) => {
@@ -1284,17 +1272,11 @@ export default function App() {
             behavior: 'smooth',
           });
         }}
-
         onOpenWhatsApp={
           handleOpenGeneralWhatsApp
         }
-
         settings={settings}
       />
-
-      {/* =======================================================
-          5. FLOATING WHATSAPP
-      ======================================================= */}
 
       <FloatingWhatsApp
         settings={settings}
@@ -1303,75 +1285,55 @@ export default function App() {
         }
       />
 
-      {/* =======================================================
-          6. PRODUCT MODAL
-      ======================================================= */}
-
       {activeModalProduct && (
         <ProductModal
           product={
             activeModalProduct
           }
-
           allProducts={
             products
           }
-
           onClose={() =>
             setActiveModalProduct(
               null
             )
           }
-
           onAddToSelection={
             handleAddToSelection
           }
-
           onToggleWishlist={
             handleToggleWishlist
           }
-
           isWishlisted={
             wishlistIds.includes(
               activeModalProduct.id
             )
           }
-
           onOpenWhatsApp={
             handleOpenProductWhatsApp
           }
         />
       )}
 
-      {/* =======================================================
-          7. SELECTION DRAWER
-      ======================================================= */}
-
       <SelectionDrawer
         isOpen={
           isSelectionOpen
         }
-
         onClose={() =>
           setIsSelectionOpen(false)
         }
-
         items={
           selection
         }
-
         onUpdateQuantity={
           handleUpdateSelectionQuantity
         }
-
         onRemoveItem={
           handleRemoveSelectionItem
         }
-
         onClearSelection={
           handleClearSelection
         }
-
         onRecordEnquiry={(
           newEnquiry
         ) => {
@@ -1380,11 +1342,9 @@ export default function App() {
             ...enquiries,
           ]);
         }}
-
         settings={
           settings
         }
-
         onContinueShopping={() => {
           const gridElem =
             document.getElementById(
@@ -1399,27 +1359,19 @@ export default function App() {
         }}
       />
 
-      {/* =======================================================
-          8. WISHLIST DRAWER
-      ======================================================= */}
-
       <WishlistDrawer
         isOpen={
           isWishlistOpen
         }
-
         onClose={() =>
           setIsWishlistOpen(false)
         }
-
         wishlistProducts={
           wishlistProducts
         }
-
         onRemoveWishlist={
           handleToggleWishlist
         }
-
         onMoveToSelection={(
           product
         ) => {
@@ -1431,16 +1383,13 @@ export default function App() {
             product.id
           );
         }}
-
         onQuickView={
           setActiveModalProduct
         }
-
         settings={
           settings
         }
       />
-
     </div>
   );
 }

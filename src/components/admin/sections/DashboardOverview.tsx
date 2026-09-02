@@ -19,7 +19,7 @@ interface DashboardOverviewProps {
   enquiries: EnquiryOrder[];
   products: Product[];
   settings: BrandSettings;
-  setActiveTab: (tab: 'dashboard' | 'products' | 'enquiries' | 'sales_history' | 'invoices' | 'media' | 'reports' | 'settings') => void;
+  setActiveTab: (tab: 'dashboard' | 'products' | 'enquiries' | 'sales_history' | 'invoices' | 'reports' | 'settings') => void;
   handleOpenEditProduct: (prod: Product) => void;
 }
 

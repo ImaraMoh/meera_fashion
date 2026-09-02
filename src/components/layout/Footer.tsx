@@ -1,7 +1,7 @@
 import React from 'react';
-import { Phone, Mail, Instagram, Music2, MessageCircle, Heart, ArrowRight } from 'lucide-react';
-import { Logo } from '../brand/Logo';
-import { BrandSettings, ProductCategory } from '../../types';
+import { Phone, Mail, Instagram, Music2, MessageCircle } from 'lucide-react';
+import LogoImage from '../../assets/logo.png';
+import { BrandSettings } from '../../types';
 
 interface FooterProps {
   onNavigate: (tab: string, category?: string) => void;
@@ -23,7 +23,23 @@ export const Footer: React.FC<FooterProps> = ({
           
           {/* Column 1: Brand & Bio */}
           <div className="lg:col-span-4 space-y-4">
-            <Logo variant="light" size="lg" customLogoUrl={settings.customLogoUrl} brandName={settings.brandName} tagline={settings.tagline} />
+            <div className="flex items-center gap-3">
+              <div className="w-12 h-12 flex items-center justify-center overflow-hidden shrink-0">
+                <img
+                  src={settings.customLogoUrl || LogoImage}
+                  alt={settings.brandName || "Meera Fashion"}
+                  className="w-12 h-12 object-contain"
+                />
+              </div>
+              <div>
+                <h3 className="font-serif text-lg font-bold text-white tracking-wide">
+                  {settings.brandName || 'Meera Fashion'}
+                </h3>
+                <p className="text-[10px] text-rose-200/70 tracking-widest uppercase">
+                  {settings.tagline || 'Traditional Elegance'}
+                </p>
+              </div>
+            </div>
             
             <p className="text-xs sm:text-sm text-rose-200/80 leading-relaxed font-light pr-4">
               {settings.brandName || 'Meera Fashion'} is a premium South Asian luxury boutique in {settings.address || 'London'}. Specializing in pure Kanjivaram silk sarees, heirloom Kundan and temple jewellery sets, bridal lehengas, and dance performance ensembles.
@@ -35,7 +51,7 @@ export const Footer: React.FC<FooterProps> = ({
                 href={settings.instagramUrl}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="w-9 h-9 rounded-full bg-white/10 hover:bg-[#C94F7C] text-white flex items-center justify-center transition-colors border border-white/15"
+                className="w-9 h-9 rounded-full bg-white/10 hover:bg-[#C94F7C] text-white flex items-center justify-center transition-colors border border-white/15 cursor-pointer"
                 title={`Instagram ${settings.instagramHandle}`}
               >
                 <Instagram className="w-4 h-4" />
@@ -45,7 +61,7 @@ export const Footer: React.FC<FooterProps> = ({
                 href={settings.tiktokUrl}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="w-9 h-9 rounded-full bg-white/10 hover:bg-[#C94F7C] text-white flex items-center justify-center transition-colors border border-white/15"
+                className="w-9 h-9 rounded-full bg-white/10 hover:bg-[#C94F7C] text-white flex items-center justify-center transition-colors border border-white/15 cursor-pointer"
                 title={`TikTok ${settings.tiktokHandle}`}
               >
                 <Music2 className="w-4 h-4" />
@@ -53,7 +69,7 @@ export const Footer: React.FC<FooterProps> = ({
 
               <button
                 onClick={onOpenWhatsApp}
-                className="w-9 h-9 rounded-full bg-[#25D366] text-white flex items-center justify-center transition-transform hover:scale-105 shadow-md"
+                className="w-9 h-9 rounded-full bg-[#25D366] text-white flex items-center justify-center transition-transform hover:scale-105 shadow-md cursor-pointer"
                 title="WhatsApp Concierge"
               >
                 <MessageCircle className="w-4 h-4 fill-white" />
@@ -70,7 +86,7 @@ export const Footer: React.FC<FooterProps> = ({
               <li>
                 <button
                   onClick={() => onNavigate('sarees', 'sarees')}
-                  className="hover:text-white transition-colors"
+                  className="hover:text-white transition-colors cursor-pointer"
                 >
                   Kanjivaram &amp; Silk Sarees
                 </button>
@@ -78,7 +94,7 @@ export const Footer: React.FC<FooterProps> = ({
               <li>
                 <button
                   onClick={() => onNavigate('jewellery', 'jewellery')}
-                  className="hover:text-white transition-colors"
+                  className="hover:text-white transition-colors cursor-pointer"
                 >
                   Temple Jewellery &amp; Bangle Sets
                 </button>
@@ -86,16 +102,16 @@ export const Footer: React.FC<FooterProps> = ({
               <li>
                 <button
                   onClick={() => onNavigate('performance', 'performance')}
-                  className="hover:text-white text-[#F8DDE7] font-semibold transition-colors flex items-center gap-1"
+                  className="hover:text-white text-[#F8DDE7] font-semibold transition-colors flex items-center gap-1 cursor-pointer"
                 >
                   <span>The Dance Performance Edit</span>
-                  <span className="text-[9px] bg-[#9E315A] text-white px-1.5 py-0.2 rounded">Hot</span>
+                  <span className="text-[9px] bg-[#9E315A] text-white px-1.5 py-0.2 rounded font-bold">Hot</span>
                 </button>
               </li>
               <li>
                 <button
                   onClick={() => onNavigate('lehengas', 'lehengas')}
-                  className="hover:text-white transition-colors"
+                  className="hover:text-white transition-colors cursor-pointer"
                 >
                   Bridal &amp; Festive Lehengas
                 </button>
@@ -103,7 +119,7 @@ export const Footer: React.FC<FooterProps> = ({
               <li>
                 <button
                   onClick={() => onNavigate('shalwar', 'shalwar')}
-                  className="hover:text-white transition-colors"
+                  className="hover:text-white transition-colors cursor-pointer"
                 >
                   Designer Shalwar &amp; Anarkalis
                 </button>
@@ -111,7 +127,7 @@ export const Footer: React.FC<FooterProps> = ({
               <li>
                 <button
                   onClick={() => onNavigate('offers', 'offers')}
-                  className="hover:text-white transition-colors"
+                  className="hover:text-white transition-colors cursor-pointer"
                 >
                   Special Offers &amp; Discounts
                 </button>
@@ -126,12 +142,12 @@ export const Footer: React.FC<FooterProps> = ({
             </h4>
             <ul className="space-y-2 text-xs text-rose-200/80">
               <li>
-                <button onClick={() => onNavigate('story')} className="hover:text-white transition-colors">
+                <button onClick={() => onNavigate('story')} className="hover:text-white transition-colors cursor-pointer">
                   About {settings.brandName || 'Meera Fashion'}
                 </button>
               </li>
               <li>
-                <button onClick={() => onNavigate('contact')} className="hover:text-white transition-colors">
+                <button onClick={() => onNavigate('contact')} className="hover:text-white transition-colors cursor-pointer">
                   Concierge &amp; Enquiries
                 </button>
               </li>
@@ -172,7 +188,7 @@ export const Footer: React.FC<FooterProps> = ({
               <div className="pt-2">
                 <button
                   onClick={onOpenWhatsApp}
-                  className="w-full flex items-center justify-center gap-2 bg-[#25D366] hover:bg-[#20ba59] text-white py-2.5 px-4 rounded-xl text-xs font-bold shadow-sm transition-all"
+                  className="w-full flex items-center justify-center gap-2 bg-[#25D366] hover:bg-[#20ba59] text-white py-2.5 px-4 rounded-xl text-xs font-bold shadow-sm transition-all cursor-pointer"
                 >
                   <MessageCircle className="w-4 h-4 fill-white" />
                   <span>Chat on WhatsApp</span>

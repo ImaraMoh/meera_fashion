@@ -1,7 +1,7 @@
 import React from 'react';
-import { Sparkles, Phone, Mail, Instagram, Music2, Heart, Award, ShieldCheck } from 'lucide-react';
+import { Sparkles, Phone, Mail, Instagram, Music2, Award, ShieldCheck } from 'lucide-react';
 import { BrandSettings } from '../../types';
-import { Logo } from '../brand/Logo';
+import LogoImage from '../../assets/logo.png';
 
 interface BrandStoryProps {
   settings: BrandSettings;
@@ -58,7 +58,7 @@ export const BrandStory: React.FC<BrandStoryProps> = ({
             </div>
           </div>
 
-          {/* Right Column: Physical Luxury Business Card Mockup (Replicating User Image) */}
+          {/* Right Column: Physical Luxury Business Card Mockup */}
           <div className="lg:col-span-6 flex justify-center">
             <div className="relative w-full max-w-md">
               
@@ -69,12 +69,11 @@ export const BrandStory: React.FC<BrandStoryProps> = ({
               <div className="relative bg-gradient-to-br from-[#FF94BA] via-[#D15585] to-[#9E315A] rounded-2xl p-7 text-white shadow-luxury-lg border border-white/40 overflow-hidden">
                 
                 {/* Subtle Card Watermark Silhouette */}
-                <div className="absolute right-3 top-4 opacity-25 pointer-events-none">
-                  <Logo
-                    variant="icon-only"
-                    size="xl"
-                    customLogoUrl={settings.customLogoUrl}
-                    brandName={settings.brandName}
+                <div className="absolute right-3 top-4 opacity-25 pointer-events-none w-20 h-20 flex items-center justify-center">
+                  <img
+                    src={settings.customLogoUrl || LogoImage}
+                    alt="Watermark Logo"
+                    className="w-full h-full object-contain filter brightness-200"
                   />
                 </div>
 
@@ -93,7 +92,7 @@ export const BrandStory: React.FC<BrandStoryProps> = ({
                   </div>
                 </div>
 
-                {/* Card Contact Grid (Matching Business Card Image) */}
+                {/* Card Contact Grid */}
                 <div className="space-y-2.5 text-xs text-rose-50 font-medium pt-4 border-t border-white/20">
                   <a
                     href={`tel:${settings.phone}`}
@@ -145,7 +144,7 @@ export const BrandStory: React.FC<BrandStoryProps> = ({
                   </span>
                   <button
                     onClick={onOpenWhatsApp}
-                    className="bg-white text-[#9E315A] hover:bg-rose-50 px-3.5 py-1 rounded-full text-xs font-bold shadow-sm transition-all flex items-center gap-1.5"
+                    className="bg-white text-[#9E315A] hover:bg-rose-50 px-3.5 py-1 rounded-full text-xs font-bold shadow-sm transition-all flex items-center gap-1.5 cursor-pointer"
                   >
                     <span>Connect Live</span>
                   </button>

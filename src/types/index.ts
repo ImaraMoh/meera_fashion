@@ -77,6 +77,7 @@ export interface EnquiryOrder {
   customerPhone: string;
   customerEmail: string;
   deliveryCity?: string;
+
   items: {
     productId: string;
     productName: string;
@@ -85,14 +86,29 @@ export interface EnquiryOrder {
     size?: string;
     image?: string;
   }[];
+
   subtotal: number;
   discount: number;
   total: number;
-  status: 'New' | 'Contacted' | 'Confirmed' | 'Paid' | 'Preparing' | 'Delivered' | 'Cancelled';
+
+  status:
+    | 'New'
+    | 'Contacted'
+    | 'Confirmed'
+    | 'Paid'
+    | 'Preparing'
+    | 'Delivered'
+    | 'Cancelled';
+
   cancelReason?: string;
   cancelledAt?: string;
   notes?: string;
+
   createdAt: string;
+
+  // NEW
+  statusUpdatedAt?: string;
+
   source: 'WhatsApp' | 'Web' | 'Direct';
 }
 

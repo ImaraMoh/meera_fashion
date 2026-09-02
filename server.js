@@ -945,6 +945,27 @@ export function createApp() {
     '/api/products',
     async (req, res) => {
       try {
+        const toTimestamp = (
+          value,
+          fallback = new Date().toISOString()
+        ) => {
+          if (
+            value === undefined ||
+            value === null ||
+            value === '' ||
+            typeof value !== 'string'
+          ) {
+            return fallback;
+          }
+
+          const date = new Date(value);
+
+          if (Number.isNaN(date.getTime())) {
+            return fallback;
+          }
+
+          return date.toISOString();
+        };
         const items =
           Array.isArray(req.body)
             ? req.body
@@ -1037,11 +1058,8 @@ export function createApp() {
               product.images ?? {}
             ),
 
-            product.createdAt ||
-              new Date().toISOString(),
-
-            product.updatedAt ||
-              new Date().toISOString(),
+            toTimestamp(product.createdAt),
+            toTimestamp(product.updatedAt),
           ];
 
           await pool.query(
@@ -1652,56 +1670,162 @@ export function createApp() {
     '/api/enquiries',
     async (req, res) => {
       try {
-        const result =
-          await pool.query(`
-            SELECT *
-            FROM enquiries
-            ORDER BY created_at DESC
-          `);
+        const result = await pool.query(`
+          SELECT
+            id,
+            order_number,
+            customer_name,
+            customer_phone,
+            customer_email,
+            items,
+            subtotal,
+            discount,
+            total,
+            status,
+            notes,
+            source,
 
-        return res.json(
+            /*
+            * IMPORTANT:
+            * Convert PostgreSQL timestamps into plain strings.
+            * This prevents pg / Date objects from reaching React.
+            */
+
+            TO_CHAR(
+              created_at,
+              'YYYY-MM-DD HH24:MI:SS.MS'
+            ) AS created_at,
+
+            TO_CHAR(
+              status_updated_at,
+              'YYYY-MM-DD HH24:MI:SS.MS'
+            ) AS status_updated_at
+
+          FROM enquiries
+
+          ORDER BY created_at DESC
+        `);
+
+        const enquiries =
           normalizeArrayResponse(
             result.rows,
             [
               (item) => {
-                item.subtotal =
-                  toNumber(
-                    item.subtotal,
-                    0
-                  );
+                /*
+                * --------------------------------------------------
+                * NUMBERS
+                * --------------------------------------------------
+                */
 
-                item.discount =
-                  toNumber(
-                    item.discount,
-                    0
-                  );
+                item.subtotal = toNumber(
+                  item.subtotal,
+                  0
+                );
 
-                item.total =
-                  toNumber(
-                    item.total,
-                    0
-                  );
+                item.discount = toNumber(
+                  item.discount,
+                  0
+                );
+
+                item.total = toNumber(
+                  item.total,
+                  0
+                );
+
+                /*
+                * --------------------------------------------------
+                * ITEMS
+                * --------------------------------------------------
+                */
 
                 item.items =
                   normalizeJsonArray(
                     item.items
                   );
 
+                /*
+                * --------------------------------------------------
+                * DATES
+                *
+                * These are ALREADY strings because of TO_CHAR()
+                *
+                * Example:
+                * "2026-09-01 08:08:56.801"
+                * --------------------------------------------------
+                */
+
+                item.created_at =
+                  item.created_at || null;
+
+                item.status_updated_at =
+                  item.status_updated_at ||
+                  null;
+
                 return item;
               },
             ]
-          )
+          );
+
+        /*
+        * --------------------------------------------------------
+        * DEBUG
+        * --------------------------------------------------------
+        *
+        * This should now show strings, NOT { ... } objects.
+        */
+
+        console.log(
+          '=========================================='
         );
+
+        console.log(
+          '📅 ENQUIRIES API DATE DEBUG'
+        );
+
+        if (enquiries.length > 0) {
+          console.log({
+            id: enquiries[0].id,
+
+            createdAt:
+              enquiries[0].createdAt,
+
+            createdAtType:
+              typeof enquiries[0].createdAt,
+
+            statusUpdatedAt:
+              enquiries[0].statusUpdatedAt,
+
+            statusUpdatedAtType:
+              typeof enquiries[0]
+                .statusUpdatedAt,
+          });
+        }
+
+        console.log(
+          '=========================================='
+        );
+
+        return res.json(enquiries);
+
       } catch (error) {
         console.error(
-          'Failed to load enquiries:',
+          '❌ Failed to load enquiries:',
           error
         );
 
-        return res.status(200).json([]);
+        return res.status(500).json({
+          ok: false,
+          message:
+            'Failed to load enquiries.',
+          details:
+            error instanceof Error
+              ? error.message
+              : String(error),
+        });
       }
     }
   );
+
 
   app.post(
     '/api/enquiries',
@@ -1770,6 +1894,10 @@ export function createApp() {
           const createdAt =
             enquiry.createdAt ||
             new Date().toISOString();
+          
+          const statusUpdatedAt =
+            enquiry.statusUpdatedAt ||
+            new Date().toISOString();
 
           await pool.query(
             `
@@ -1787,10 +1915,11 @@ export function createApp() {
                 total,
                 source,
                 created_at
+                status_updated_at
               )
               VALUES (
                 $1,$2,$3,$4,$5,$6,$7,
-                $8,$9,$10,$11,$12,$13
+                $8,$9,$10,$11,$12,$13,$14
               )
 
               ON CONFLICT (id)
@@ -1844,6 +1973,7 @@ export function createApp() {
               total,
               source,
               createdAt,
+              status_updated_at
             ]
           );
         }
@@ -1872,6 +2002,254 @@ export function createApp() {
       }
     }
   );
+
+  app.delete(
+    '/api/enquiries/:id',
+    async (req, res) => {
+      try {
+        const { id } = req.params;
+
+        if (!id) {
+          return res.status(400).json({
+            ok: false,
+            message: 'Enquiry ID is required.',
+          });
+        }
+
+        const result = await pool.query(
+          `
+            DELETE FROM enquiries
+            WHERE id = $1
+            RETURNING id
+          `,
+          [id]
+        );
+
+        if (result.rowCount === 0) {
+          return res.status(404).json({
+            ok: false,
+            message: 'Enquiry or invoice not found.',
+          });
+        }
+
+        return res.json({
+          ok: true,
+          message: 'Enquiry deleted successfully.',
+          deletedId: id,
+        });
+      } catch (error) {
+        console.error(
+          'Failed to delete enquiry:',
+          error
+        );
+
+        return res.status(500).json({
+          ok: false,
+
+          message:
+            'Failed to delete enquiry.',
+
+          details:
+            error instanceof Error
+              ? error.message
+              : String(error),
+        });
+      }
+    }
+  );
+
+  app.get('/api/enquiries/:id', async (req, res) => {
+    try {
+      const { id } = req.params;
+
+      console.log('📄 Fetching enquiry for invoice:', id);
+
+      const result = await pool.query(
+        `
+          SELECT
+            id,
+            order_number,
+            customer_name,
+            customer_phone,
+            customer_email,
+            items,
+            subtotal,
+            discount,
+            total,
+            status,
+            notes,
+            created_at,
+            status_updated_at,
+            source
+          FROM enquiries
+          WHERE id = $1
+          LIMIT 1
+        `,
+        [id]
+      );
+
+      if (result.rows.length === 0) {
+        return res.status(404).json({
+          ok: false,
+          message: 'Enquiry not found.',
+        });
+      }
+
+      const enquiry = result.rows[0];
+
+      enquiry.subtotal = toNumber(
+        enquiry.subtotal,
+        0
+      );
+
+      enquiry.discount = toNumber(
+        enquiry.discount,
+        0
+      );
+
+      enquiry.total = toNumber(
+        enquiry.total,
+        0
+      );
+
+      enquiry.items = normalizeJsonArray(
+        enquiry.items
+      );
+
+      const normalizedEnquiry =
+        normalizeKeys(enquiry);
+
+      console.log(
+        '✅ Invoice enquiry dates:',
+        {
+          id: normalizedEnquiry.id,
+          createdAt:
+            normalizedEnquiry.createdAt,
+          statusUpdatedAt:
+            normalizedEnquiry.statusUpdatedAt,
+        }
+      );
+
+      return res.json({
+        ok: true,
+        enquiry: normalizedEnquiry,
+      });
+    } catch (error) {
+      console.error(
+        '❌ Failed to fetch enquiry for invoice:',
+        error
+      );
+
+      return res.status(500).json({
+        ok: false,
+        message:
+          'Failed to fetch enquiry for invoice.',
+        details:
+          error instanceof Error
+            ? error.message
+            : String(error),
+      });
+    }
+  });
+
+  /* =======================================================
+    UPDATE ENQUIRY STATUS
+  ======================================================= */
+
+  app.patch('/api/enquiries/:id/status', async (req, res) => {
+    try {
+      const { id } = req.params;
+      const { status } = req.body;
+
+      console.log('🔄 Updating enquiry status:', {
+        id,
+        status,
+      });
+
+      const validStatuses = [
+        'New',
+        'Contacted',
+        'Confirmed',
+        'Paid',
+        'Preparing',
+        'Delivered',
+        'Cancelled',
+      ];
+
+      if (!status || !validStatuses.includes(status)) {
+        return res.status(400).json({
+          ok: false,
+          message: 'Invalid enquiry status.',
+        });
+      }
+
+      const result = await pool.query(
+        `
+          UPDATE enquiries
+          SET
+            status = $1,
+            status_updated_at = NOW()
+          WHERE id = $2
+          RETURNING *
+        `,
+        [status, id]
+      );
+
+      if (result.rows.length === 0) {
+        return res.status(404).json({
+          ok: false,
+          message: 'Enquiry not found.',
+        });
+      }
+
+      const updatedEnquiry = normalizeKeys(result.rows[0]);
+
+      updatedEnquiry.subtotal = toNumber(
+        updatedEnquiry.subtotal,
+        0
+      );
+
+      updatedEnquiry.discount = toNumber(
+        updatedEnquiry.discount,
+        0
+      );
+
+      updatedEnquiry.total = toNumber(
+        updatedEnquiry.total,
+        0
+      );
+
+      updatedEnquiry.items = normalizeJsonArray(
+        updatedEnquiry.items
+      );
+
+      console.log('✅ Enquiry status updated:', {
+        id: updatedEnquiry.id,
+        status: updatedEnquiry.status,
+        statusUpdatedAt: updatedEnquiry.statusUpdatedAt,
+      });
+
+      return res.json({
+        ok: true,
+        enquiry: updatedEnquiry,
+      });
+    } catch (error) {
+      console.error(
+        '❌ Failed to update enquiry status:',
+        error
+      );
+
+      return res.status(500).json({
+        ok: false,
+        message: 'Failed to update enquiry status.',
+        details:
+          error instanceof Error
+            ? error.message
+            : String(error),
+      });
+    }
+  });
+
 
   /* =======================================================
      INVOICES

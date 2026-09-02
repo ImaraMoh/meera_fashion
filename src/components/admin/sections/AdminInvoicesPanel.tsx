@@ -7,7 +7,6 @@ import React, {
 
 import {
   Download,
-  Printer,
   Search,
   Trash2,
   FileText,
@@ -15,6 +14,7 @@ import {
   RefreshCw,
   Loader2,
   AlertCircle,
+  AlertTriangle,
 } from 'lucide-react';
 
 import type { Invoice } from '../../../types';
@@ -30,11 +30,7 @@ interface AdminInvoicesPanelProps {
     invoice: Invoice
   ) => void;
 
-  onPrintInvoice?: (
-    invoice: Invoice
-  ) => void;
-
-  onDeleteInvoice: (
+  onDeleteInvoice?: (
     invoice: Invoice
   ) => void;
 }
@@ -113,28 +109,10 @@ interface BackendEnquiry {
    API CONFIG
 ================================================================ */
 
-/**
- * IMPORTANT:
- *
- * Frontend:
- * http://172.20.10.2:3000
- *
- * Backend:
- * http://172.20.10.2:4004
- *
- * VITE_API_BASE_URL should be:
- *
- * VITE_API_BASE_URL=http://172.20.10.2:4004
- */
-
 const API_BASE_URL =
   import.meta.env.VITE_API_BASE_URL ||
   'http://172.20.10.2:4004';
 
-/**
- * Only these enquiry statuses should appear
- * in the invoice section.
- */
 const INVOICE_STATUSES = [
   'paid',
   'preparing',
@@ -378,11 +356,6 @@ const getEnquiryItems = (
       return value as EnquiryItem[];
     }
 
-    /**
-     * PostgreSQL JSON/JSONB can sometimes
-     * arrive as a JSON string depending on
-     * the database schema.
-     */
     if (
       typeof value === 'string'
     ) {
@@ -522,10 +495,6 @@ const enquiryToInvoice = (
       0
     );
 
-  /**
-   * If the backend doesn't provide
-   * a total, calculate it from items.
-   */
   if (
     total === 0 &&
     invoiceItems.length > 0
@@ -579,7 +548,6 @@ export const AdminInvoicesPanel: React.FC<
   AdminInvoicesPanelProps
 > = ({
   onDownloadInvoice,
-  onPrintInvoice,
   onDeleteInvoice,
 }) => {
   const [
@@ -608,6 +576,19 @@ export const AdminInvoicesPanel: React.FC<
   ] = useState('');
 
   /* ==============================================================
+     DELETE CONFIRMATION MODAL STATE
+  ============================================================== */
+  const [
+    invoiceToDelete,
+    setInvoiceToDelete,
+  ] = useState<Invoice | null>(null);
+
+  const [
+    isDeleting,
+    setIsDeleting,
+  ] = useState(false);
+
+  /* ==============================================================
      FETCH REAL DATABASE DATA
   ============================================================== */
 
@@ -627,24 +608,8 @@ export const AdminInvoicesPanel: React.FC<
 
           setError('');
 
-          /**
-           * IMPORTANT:
-           *
-           * This now calls:
-           *
-           * http://172.20.10.2:4004/api/invoice-enquiries
-           *
-           * instead of:
-           *
-           * http://172.20.10.2:3000/api/invoice-enquiries
-           */
           const url =
             `${API_BASE_URL}/api/enquiries`;
-
-          console.log(
-            '📡 Fetching invoice enquiries:',
-            url
-          );
 
           const response =
             await fetch(
@@ -657,10 +622,6 @@ export const AdminInvoicesPanel: React.FC<
                     'application/json',
                 },
 
-                /**
-                 * Only needed if your backend
-                 * uses cookie authentication.
-                 */
                 credentials:
                   'include',
               }
@@ -693,27 +654,11 @@ export const AdminInvoicesPanel: React.FC<
           const result =
             await response.json();
 
-          console.log(
-            '✅ Invoice enquiry API response:',
-            result
-          );
-
           const enquiries =
             extractEnquiries(
               result
             );
 
-          console.log(
-            `✅ Received ${enquiries.length} enquiries from PostgreSQL`
-          );
-
-          /**
-           * Only:
-           *
-           * Paid
-           * Preparing
-           * Delivered
-           */
           const invoiceEnquiries =
             enquiries.filter(
               (
@@ -731,10 +676,6 @@ export const AdminInvoicesPanel: React.FC<
               }
             );
 
-          console.log(
-            `🧾 ${invoiceEnquiries.length} enquiries qualify as invoices`
-          );
-
           const mappedInvoices =
             invoiceEnquiries.map(
               (
@@ -747,13 +688,6 @@ export const AdminInvoicesPanel: React.FC<
                 )
             );
 
-          /**
-           * Newest records first.
-           *
-           * The backend already orders by
-           * created_at DESC, but we keep
-           * this client-side safety sorting.
-           */
           mappedInvoices.sort(
             (
               a,
@@ -798,11 +732,6 @@ export const AdminInvoicesPanel: React.FC<
         } catch (
           err
         ) {
-          console.error(
-            '❌ Failed to fetch invoice enquiries:',
-            err
-          );
-
           setError(
             err instanceof Error
               ? err.message
@@ -828,6 +757,51 @@ export const AdminInvoicesPanel: React.FC<
   }, [
     fetchInvoices,
   ]);
+
+  /* ==============================================================
+     HANDLE CONFIRMED DELETION
+  ============================================================== */
+
+  const confirmDeleteInvoice = async () => {
+    if (!invoiceToDelete) return;
+
+    const invoiceId = safeText(invoiceToDelete.id);
+    if (!invoiceId) return;
+
+    try {
+      setIsDeleting(true);
+
+      const url = `${API_BASE_URL}/api/enquiries/${invoiceId}`;
+      const response = await fetch(url, {
+        method: 'DELETE',
+        credentials: 'include',
+      });
+
+      if (!response.ok) {
+        throw new Error(`Failed to delete invoice from database (${response.status})`);
+      }
+
+      // Remove from local state instantly
+      setInvoices((prev) =>
+        prev.filter((inv) => safeText(inv.id) !== invoiceId)
+      );
+
+      // Call optional parent handler if provided
+      if (onDeleteInvoice) {
+        onDeleteInvoice(invoiceToDelete);
+      }
+
+      setInvoiceToDelete(null);
+    } catch (err) {
+      alert(
+        err instanceof Error
+          ? err.message
+          : 'Failed to delete invoice. Please try again.'
+      );
+    } finally {
+      setIsDeleting(false);
+    }
+  };
 
   /* ==============================================================
      SEARCH
@@ -896,25 +870,6 @@ export const AdminInvoicesPanel: React.FC<
     () => {
       setSearchTerm('');
     };
-
-  /* ==============================================================
-     PRINT
-  ============================================================== */
-
-  const handlePrint = (
-    invoice: Invoice
-  ) => {
-    if (
-      onPrintInvoice
-    ) {
-      onPrintInvoice(
-        invoice
-      );
-      return;
-    }
-
-    window.print();
-  };
 
   /* ==============================================================
      STATUS STYLE
@@ -1448,35 +1403,12 @@ export const AdminInvoicesPanel: React.FC<
 
                       <div className="flex items-center gap-1.5">
 
-                        {/* PRINT */}
+                        {/* DELETE BUTTON */}
 
                         <button
                           type="button"
                           onClick={() =>
-                            handlePrint(
-                              invoice
-                            )
-                          }
-                          className="flex items-center gap-1.5 px-3 py-2 rounded-full text-[11px] sm:text-xs font-semibold text-[#8C5D6C] hover:text-[#241B20] hover:bg-rose-50 transition-colors cursor-pointer"
-                          title="Print invoice"
-                        >
-
-                          <Printer className="w-3.5 h-3.5" />
-
-                          <span className="hidden sm:inline">
-                            Print
-                          </span>
-
-                        </button>
-
-                        {/* DELETE */}
-
-                        <button
-                          type="button"
-                          onClick={() =>
-                            onDeleteInvoice(
-                              invoice
-                            )
+                            setInvoiceToDelete(invoice)
                           }
                           className="p-2 text-rose-300 hover:text-red-700 hover:bg-rose-50 rounded-full transition-colors cursor-pointer"
                           title="Delete Invoice"
@@ -1498,6 +1430,61 @@ export const AdminInvoicesPanel: React.FC<
             }
           )}
 
+        </div>
+      )}
+
+      {/* ==============================================================
+         DELETE CONFIRMATION MODAL
+      ============================================================== */}
+      {invoiceToDelete && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4 animate-fadeIn">
+          <div className="bg-white w-full max-w-md rounded-3xl p-6 shadow-2xl border border-rose-100 space-y-5 animate-scaleUp">
+            
+            <div className="flex items-center gap-4">
+              <div className="w-12 h-12 rounded-2xl bg-red-50 text-red-600 flex items-center justify-center shrink-0 border border-red-100">
+                <AlertTriangle className="w-6 h-6" />
+              </div>
+              <div>
+                <h4 className="font-serif font-bold text-lg text-[#241B20]">
+                  Delete Invoice Record?
+                </h4>
+                <p className="text-xs text-[#8C5D6C] mt-0.5">
+                  Are you sure you want to delete invoice <span className="font-mono font-bold text-[#9E315A]">{safeText(invoiceToDelete.invoiceNumber)}</span> for <span className="font-semibold text-[#241B20]">{safeText(invoiceToDelete.customerName)}</span>? This action will permanently remove it from the database.
+                </p>
+              </div>
+            </div>
+
+            <div className="flex items-center justify-end gap-2.5 pt-3 border-t border-rose-100">
+              <button
+                type="button"
+                disabled={isDeleting}
+                onClick={() => setInvoiceToDelete(null)}
+                className="px-4 py-2.5 rounded-xl bg-gray-100 hover:bg-gray-200 text-gray-700 text-xs font-bold transition-colors cursor-pointer disabled:opacity-50"
+              >
+                Cancel
+              </button>
+
+              <button
+                type="button"
+                disabled={isDeleting}
+                onClick={confirmDeleteInvoice}
+                className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-red-600 hover:bg-red-700 text-white text-xs font-bold transition-colors cursor-pointer disabled:opacity-50 shadow-md"
+              >
+                {isDeleting ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    <span>Deleting...</span>
+                  </>
+                ) : (
+                  <>
+                    <Trash2 className="w-4 h-4" />
+                    <span>Yes, Delete</span>
+                  </>
+                )}
+              </button>
+            </div>
+
+          </div>
         </div>
       )}
 

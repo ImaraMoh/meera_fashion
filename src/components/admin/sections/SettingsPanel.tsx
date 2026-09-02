@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
   Camera,
   Check,
@@ -10,7 +10,7 @@ import {
 } from 'lucide-react';
 
 import { BrandSettings } from '../../../types';
-import { Logo } from '../../brand/Logo';
+import LogoImage from '../../../assets/logo.png';
 
 interface SettingsPanelProps {
   localSettings: BrandSettings;
@@ -186,30 +186,11 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
 
             <div className="w-24 h-24 rounded-2xl bg-rose-50 border-2 border-dashed border-rose-200 flex items-center justify-center p-2 relative shrink-0 overflow-hidden">
 
-              {localSettings.customLogoUrl ? (
-
-                <img
-                  src={localSettings.customLogoUrl}
-                  alt="Custom Logo"
-                  className="w-full h-full object-contain"
-                />
-
-              ) : (
-
-                <div className="text-center">
-
-                  <Logo
-                    variant="icon-only"
-                    size="sm"
-                  />
-
-                  <span className="text-[9px] text-[#8C5D6C] font-semibold block mt-1">
-                    Default Logo
-                  </span>
-
-                </div>
-
-              )}
+              <img
+                src={localSettings.customLogoUrl || LogoImage}
+                alt="Custom Logo"
+                className="w-full h-full object-contain"
+              />
 
             </div>
 
@@ -232,7 +213,7 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
                   onClick={() =>
                     logoInputRef.current?.click()
                   }
-                  className="flex items-center gap-1.5 bg-[#9E315A] hover:bg-[#832247] text-white px-4 py-2 rounded-xl text-xs font-bold transition-colors"
+                  className="flex items-center gap-1.5 bg-[#9E315A] hover:bg-[#832247] text-white px-4 py-2 rounded-xl text-xs font-bold transition-colors cursor-pointer"
                 >
 
                   <Camera className="w-3.5 h-3.5" />
@@ -251,7 +232,7 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
                         customLogoUrl: '',
                       }))
                     }
-                    className="px-3 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-xl text-xs font-semibold transition-colors"
+                    className="px-3 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-xl text-xs font-semibold transition-colors cursor-pointer"
                   >
                     Reset to Default
                   </button>
@@ -548,7 +529,7 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
                       !prev.enableRentalMode,
                   }))
                 }
-                className={`px-3.5 py-1.5 rounded-full text-xs font-bold transition-colors ${
+                className={`px-3.5 py-1.5 rounded-full text-xs font-bold transition-colors cursor-pointer ${
                   localSettings.enableRentalMode
                     ? 'bg-purple-600 text-white'
                     : 'bg-rose-100 text-[#9E315A]'
@@ -581,7 +562,7 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
 
           <button
             type="submit"
-            className={`flex items-center justify-center gap-2 px-6 py-3 rounded-full text-xs font-bold shadow-md transition-colors ${
+            className={`flex items-center justify-center gap-2 px-6 py-3 rounded-full text-xs font-bold shadow-md transition-colors cursor-pointer ${
               settingsSavedFeedback
                 ? 'bg-emerald-600 text-white'
                 : 'bg-[#9E315A] hover:bg-[#832247] text-white'
@@ -677,7 +658,7 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
                     (prev) => !prev
                   )
                 }
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-[#8C5D6C] hover:text-[#9E315A]"
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-[#8C5D6C] hover:text-[#9E315A] cursor-pointer"
                 aria-label={
                   showCurrentPassword
                     ? 'Hide current password'
@@ -734,7 +715,7 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
                     (prev) => !prev
                   )
                 }
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-[#8C5D6C] hover:text-[#9E315A]"
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-[#8C5D6C] hover:text-[#9E315A] cursor-pointer"
                 aria-label={
                   showNewPassword
                     ? 'Hide new password'
@@ -795,7 +776,7 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
                     (prev) => !prev
                   )
                 }
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-[#8C5D6C] hover:text-[#9E315A]"
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-[#8C5D6C] hover:text-[#9E315A] cursor-pointer"
                 aria-label={
                   showConfirmPassword
                     ? 'Hide confirm password'
@@ -852,7 +833,7 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
             type="button"
             disabled={passwordLoading}
             onClick={handlePasswordSubmit}
-            className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-[#9E315A] hover:bg-[#832247] disabled:opacity-50 disabled:cursor-not-allowed text-white text-xs font-bold shadow-sm transition-colors"
+            className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-[#9E315A] hover:bg-[#832247] disabled:opacity-50 disabled:cursor-not-allowed text-white text-xs font-bold shadow-sm transition-colors cursor-pointer"
           >
 
             {passwordLoading ? (

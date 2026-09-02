@@ -39,14 +39,40 @@ export const OrderDetailsModal: React.FC<
     return null;
   }
 
-  const statusClass =
-    enquiry.status === 'Paid'
-      ? 'bg-emerald-100 text-emerald-800'
-      : enquiry.status === 'Delivered'
-        ? 'bg-blue-100 text-blue-800'
-        : enquiry.status === 'Cancelled'
-          ? 'bg-red-100 text-red-800'
-          : 'bg-amber-100 text-amber-800';
+  /*
+   * Status styling
+   *
+   * The actual enquiry.status is displayed.
+   * Nothing is changed to "Pending Confirmation".
+   */
+  const getStatusClass = (status?: string) => {
+    switch (status) {
+      case 'New':
+        return 'bg-sky-100 text-sky-800';
+
+      case 'Contacted':
+        return 'bg-violet-100 text-violet-800';
+
+      case 'Paid':
+        return 'bg-emerald-100 text-emerald-800';
+
+      case 'Delivered':
+        return 'bg-blue-100 text-blue-800';
+
+      case 'Cancelled':
+        return 'bg-red-100 text-red-800';
+
+      case 'Pending Confirmation':
+        return 'bg-amber-100 text-amber-800';
+
+      default:
+        return 'bg-gray-100 text-gray-700';
+    }
+  };
+
+  const statusClass = getStatusClass(
+    enquiry.status
+  );
 
   const createdDate = new Date(
     enquiry.createdAt
@@ -68,10 +94,11 @@ export const OrderDetailsModal: React.FC<
                 {enquiry.orderNumber}
               </span>
 
+              {/* ACTUAL ENQUIRY STATUS */}
               <span
                 className={`px-2.5 py-0.5 rounded-full text-xs font-bold ${statusClass}`}
               >
-                {enquiry.status}
+                {enquiry.status || 'New'}
               </span>
 
             </div>
@@ -106,7 +133,7 @@ export const OrderDetailsModal: React.FC<
 
         </div>
 
-        {/* Customer */}
+        {/* Customer Information */}
         <div className="p-4 rounded-2xl bg-rose-50/50 border border-rose-100 space-y-2">
 
           <h4 className="text-xs font-bold uppercase tracking-wider text-[#9E315A]">
@@ -115,6 +142,7 @@ export const OrderDetailsModal: React.FC<
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
 
+            {/* Full Name */}
             <div>
               <span className="text-[#8C5D6C] block">
                 Full Name:
@@ -125,6 +153,7 @@ export const OrderDetailsModal: React.FC<
               </strong>
             </div>
 
+            {/* Phone */}
             <div>
               <span className="text-[#8C5D6C] block">
                 WhatsApp / Phone:
@@ -135,18 +164,9 @@ export const OrderDetailsModal: React.FC<
               </strong>
             </div>
 
-            {enquiry.customerEmail && (
-              <div>
-                <span className="text-[#8C5D6C] block">
-                  Email Address:
-                </span>
+            {/* Email removed */}
 
-                <span className="text-[#241B20]">
-                  {enquiry.customerEmail}
-                </span>
-              </div>
-            )}
-
+            {/* Delivery City */}
             {enquiry.deliveryCity && (
               <div>
                 <span className="text-[#8C5D6C] block">

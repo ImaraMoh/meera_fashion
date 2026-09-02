@@ -39,7 +39,6 @@ interface WhatsAppLeadsPanelProps {
       | 'enquiries'
       | 'sales_history'
       | 'invoices'
-      | 'media'
       | 'reports'
       | 'settings'
   ) => void;

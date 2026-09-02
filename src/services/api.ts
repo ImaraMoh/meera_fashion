@@ -108,19 +108,6 @@ export async function loadRemoteProducts(): Promise<Product[]> {
     : [];
 }
 
-export async function saveRemoteProducts(
-  products: Product[]
-): Promise<void> {
-
-  await request<void>(
-    '/api/products',
-    {
-      method: 'POST',
-      body: JSON.stringify(products),
-    }
-  );
-}
-
 // =============================================================
 // SELECTION
 // =============================================================
@@ -346,3 +333,16 @@ export interface AnalyticsData {
 // =============================================================
 
 export const loadAnalytics = async ( range: string = '30' ): Promise<AnalyticsData> => { return request<AnalyticsData>( `/api/analytics?range=${encodeURIComponent(range)}` ); };
+
+export async function saveRemoteProducts(
+  products: Product[]
+): Promise<void> {
+
+  await request<void>(
+    '/api/products',
+    {
+      method: 'POST',
+      body: JSON.stringify(products),
+    }
+  );
+}

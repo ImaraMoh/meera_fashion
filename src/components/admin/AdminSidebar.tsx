@@ -1,75 +1,42 @@
-import React, { useMemo } from 'react';
-import { MessageCircle } from 'lucide-react';
-import { Logo } from '../brand/Logo';
+import React, { useMemo, useState } from 'react';
+import {
+  MessageCircle,
+  LogOut,
+  Menu,
+  X,
+  ChevronDown,
+} from 'lucide-react';
+
+import LogoImage from '../../assets/logo.png';
 import { openWhatsAppChat } from '../../services/whatsapp';
+
 import type {
   BrandSettings,
   EnquiryOrder,
   Product,
   Invoice,
 } from '../../types';
+
 import {
   ADMIN_TABS,
   type AdminTabId,
 } from './adminNavigation';
 
-/* ================================================================
-   PROPS
-================================================================ */
-
 interface AdminSidebarProps {
   activeTab: AdminTabId;
   setActiveTab: (tab: AdminTabId) => void;
-
   products: Product[];
-
-  /**
-   * COMPLETE enquiries table data.
-   *
-   * This is the main source of truth for:
-   *
-   * 1. Sales History count
-   * 2. Invoice count
-   */
   enquiries: EnquiryOrder[];
-
-  /**
-   * Kept for compatibility with AdminPortal.
-   *
-   * We DO NOT use invoices.length for the
-   * sidebar invoice badge.
-   */
   invoices: Invoice[];
-
   settings: BrandSettings;
-
-  /**
-   * Only pending/new enquiries.
-   */
   pendingEnquiriesCount: number;
-
-  /**
-   * Kept for compatibility.
-   *
-   * These are intentionally ignored because
-   * the sidebar calculates counts directly
-   * from the enquiries table.
-   */
   salesHistoryCount?: number;
   invoiceCount?: number;
+  onLogout?: () => void;
 }
 
-/* ================================================================
-   STATUS NORMALIZER
-================================================================ */
-
-const normalizeStatus = (
-  value: unknown
-): string => {
-  if (
-    value === null ||
-    value === undefined
-  ) {
+const normalizeStatus = (value: unknown): string => {
+  if (value === null || value === undefined) {
     return '';
   }
 
@@ -79,439 +46,882 @@ const normalizeStatus = (
     .replace(/[_-]/g, ' ');
 };
 
-/* ================================================================
-   INVOICE STATUSES
-================================================================ */
-
-/**
- * These enquiry statuses should appear in
- * the Invoice section.
- *
- * IMPORTANT:
- *
- * Invoice count is calculated from the
- * COMPLETE enquiries table, NOT from
- * invoices.length.
- */
 const INVOICE_STATUSES = new Set([
   'paid',
   'preparing',
   'delivered',
 ]);
 
-/* ================================================================
-   COMPONENT
-================================================================ */
-
-export const AdminSidebar: React.FC<
-  AdminSidebarProps
-> = ({
+export const AdminSidebar: React.FC<AdminSidebarProps> = ({
   activeTab,
   setActiveTab,
-
   products,
   enquiries,
-
-  // Kept because AdminPortal still passes it.
-  // It is intentionally NOT used for invoice count.
   invoices: _invoices,
-
   settings,
-
   pendingEnquiriesCount,
-
-  // Compatibility props.
   salesHistoryCount: _salesHistoryCount,
   invoiceCount: _invoiceCount,
+  onLogout,
 }) => {
+  const [isMobileMenuOpen, setIsMobileMenuOpen] =
+    useState(false);
 
-  /* ==============================================================
-     SAFE DATA
-  ============================================================== */
+  const enquiryData = Array.isArray(enquiries)
+    ? enquiries
+    : [];
 
-  const enquiryData =
-    Array.isArray(enquiries)
-      ? enquiries
-      : [];
+  const productData = Array.isArray(products)
+    ? products
+    : [];
 
-  const productData =
-    Array.isArray(products)
-      ? products
-      : [];
+  const productCount = productData.length;
 
-  /* ==============================================================
-     PRODUCT COUNT
-  ============================================================== */
+  const enquiryCount = Number.isFinite(
+    pendingEnquiriesCount
+  )
+    ? Math.max(0, pendingEnquiriesCount)
+    : 0;
 
-  const productCount =
-    productData.length;
+  const totalSalesHistoryCount = useMemo(() => {
+    return enquiryData.length;
+  }, [enquiryData]);
 
-  /* ==============================================================
-     ENQUIRY COUNT
-  ============================================================== */
+  const totalInvoiceCount = useMemo(() => {
+    return enquiryData.filter((enquiry) => {
+      const status = normalizeStatus(
+        (enquiry as any)?.status
+      );
 
-  /**
-   * This is ONLY for the "Enquiries" badge.
-   *
-   * It should represent pending/new enquiries.
-   */
-  const enquiryCount =
-    Number.isFinite(
-      pendingEnquiriesCount
-    )
-      ? Math.max(
-          0,
-          pendingEnquiriesCount
-        )
-      : 0;
+      return INVOICE_STATUSES.has(status);
+    }).length;
+  }, [enquiryData]);
 
-  /* ==============================================================
-     SALES HISTORY COUNT
-  ============================================================== */
+  const badges = useMemo<
+    Partial<Record<AdminTabId, number | string>>
+  >(() => {
+    return {
+      products: productCount,
 
-  /**
-   * SALES HISTORY = ALL ENQUIRIES
-   *
-   * Do NOT filter by status here.
-   *
-   * Example:
-   *
-   * enquiries table:
-   *
-   * Pending       3
-   * Paid          2
-   * Preparing     1
-   * Delivered     3
-   * Cancelled     1
-   * ----------------
-   * TOTAL         10
-   *
-   * Sidebar:
-   *
-   * Sales History → 10
-   */
-  const totalSalesHistoryCount =
-    useMemo(() => {
-      return enquiryData.length;
-    }, [enquiryData]);
+      enquiries:
+        enquiryCount > 0
+          ? `${enquiryCount} New`
+          : 0,
 
-  /* ==============================================================
-     INVOICE COUNT
-  ============================================================== */
+      sales_history: totalSalesHistoryCount,
 
-  /**
-   * INVOICES = PAID + PREPARING + DELIVERED
-   *
-   * IMPORTANT:
-   *
-   * We intentionally calculate this from
-   * the COMPLETE enquiries table.
-   *
-   * We DO NOT use:
-   *
-   *     invoices.length
-   *
-   * because the Invoice panel may have a
-   * separately mapped/filtered dataset.
-   *
-   * Example:
-   *
-   * enquiries table:
-   *
-   * Pending       3
-   * Paid          1
-   * Preparing     1
-   * Delivered     2
-   * Cancelled     3
-   * ----------------
-   * Total         10
-   *
-   * Invoice count:
-   *
-   * Paid          1
-   * Preparing     1
-   * Delivered     2
-   * ----------------
-   * Invoice       4
-   */
-  const totalInvoiceCount =
-    useMemo(() => {
+      invoices: totalInvoiceCount,
+    };
+  }, [
+    productCount,
+    enquiryCount,
+    totalSalesHistoryCount,
+    totalInvoiceCount,
+  ]);
 
-      return enquiryData.filter(
-        (enquiry) => {
+  const activeTabLabel =
+    ADMIN_TABS.find(
+      (item) => item.id === activeTab
+    )?.label || 'Dashboard';
 
-          const status =
-            normalizeStatus(
-              (enquiry as any)?.status
-            );
+  const handleTabChange = (tab: AdminTabId) => {
+    setActiveTab(tab);
+    setIsMobileMenuOpen(false);
+  };
 
-          return INVOICE_STATUSES.has(
-            status
-          );
-        }
-      ).length;
+  const handleLogoutAction = () => {
+    console.log(
+      '=========================================='
+    );
+    console.log('🔐 MEERA FASHION ADMIN LOGOUT');
+    console.log(
+      '=========================================='
+    );
 
-    }, [enquiryData]);
+    sessionStorage.removeItem(
+      'meera_admin_authenticated'
+    );
 
-  /* ==============================================================
-     BADGES
-  ============================================================== */
+    localStorage.removeItem(
+      'meera_admin_authenticated'
+    );
 
-  const badges =
-    useMemo<
-      Partial<
-        Record<
-          AdminTabId,
-          number | string
-        >
-      >
-    >(() => {
+    console.log(
+      '✅ Admin authentication cleared'
+    );
 
-      return {
+    setIsMobileMenuOpen(false);
 
-        /* --------------------------------------------------------
-           PRODUCTS
-        -------------------------------------------------------- */
+    if (onLogout) {
+      console.log(
+        '➡️ Returning to AdminLoginPage'
+      );
 
-        products:
-          productCount,
+      onLogout();
+    } else {
+      console.warn(
+        '⚠️ onLogout callback was not provided.'
+      );
+    }
+  };
 
-        /* --------------------------------------------------------
-           ENQUIRIES
-        -------------------------------------------------------- */
-
-        enquiries:
-          enquiryCount > 0
-            ? `${enquiryCount} New`
-            : 0,
-
-        /* --------------------------------------------------------
-           SALES HISTORY
-           
-           ALL ENQUIRIES
-        -------------------------------------------------------- */
-
-        sales_history:
-          totalSalesHistoryCount,
-
-        /* --------------------------------------------------------
-           INVOICES
-           
-           PAID + PREPARING + DELIVERED
-        -------------------------------------------------------- */
-
-        invoices:
-          totalInvoiceCount,
-
-        /* --------------------------------------------------------
-           MEDIA
-        -------------------------------------------------------- */
-
-        media:
-          'WebP',
-      };
-
-    }, [
-      productCount,
-      enquiryCount,
-      totalSalesHistoryCount,
-      totalInvoiceCount,
-    ]);
-
-  /* ==============================================================
-     RENDER
-  ============================================================== */
+  const handleWhatsApp = () => {
+    openWhatsAppChat(
+      settings.whatsappNumber,
+      'Hello Meera Fashion Concierge Test.'
+    );
+  };
 
   return (
-    <aside
-      className="
-        w-56 lg:w-64
-        bg-[#1C1217]/95
-        backdrop-blur-2xl
-        border border-white/10
-        rounded-3xl
-        p-4 lg:p-5
-        flex flex-col
-        justify-between
-        shadow-2xl
-        shadow-black/60
-        shrink-0
-        hidden md:flex
-        h-full
-        min-h-0
-      "
-    >
-
-      {/* ==========================================================
-          TOP
-      ========================================================== */}
-
-      <div className="space-y-5">
-
-        {/* ========================================================
-            LOGO
-        ======================================================== */}
-
+    <>
+      {/* =====================================================
+          MOBILE TOP BAR
+          Visible only below lg breakpoint
+      ====================================================== */}
+      <header
+        className="
+          lg:hidden
+          sticky
+          top-0
+          z-50
+          w-full
+          bg-[#1C1217]/95
+          backdrop-blur-2xl
+          border-b
+          border-white/10
+          shadow-lg
+          shadow-black/30
+        "
+      >
         <div
           className="
+            h-16
+            px-4
             flex
             items-center
             justify-between
-            pb-4
-            border-b
-            border-white/10
           "
         >
-
-          <div className="space-y-0.5">
-
-            <Logo
-              variant="light"
-              size="sm"
-              customLogoUrl={
-                settings.customLogoUrl
+          {/* Left Side */}
+          <div
+            className="
+              flex
+              items-center
+              gap-3
+              min-w-0
+            "
+          >
+            {/* Hamburger */}
+            <button
+              type="button"
+              onClick={() =>
+                setIsMobileMenuOpen(
+                  (prev) => !prev
+                )
               }
-              brandName={
-                settings.brandName
+              aria-label={
+                isMobileMenuOpen
+                  ? 'Close admin menu'
+                  : 'Open admin menu'
               }
-              tagline={
-                settings.tagline
+              aria-expanded={
+                isMobileMenuOpen
               }
-            />
-
-            {/* ====================================================
-                LIVE STATUS
-            ==================================================== */}
-
-            <div
               className="
+                w-10
+                h-10
                 flex
                 items-center
-                gap-1.5
-                pt-1
+                justify-center
+                rounded-xl
+                bg-white/5
+                border
+                border-white/10
+                text-white
+                hover:bg-white/10
+                transition-all
+                active:scale-95
+                cursor-pointer
+                shrink-0
               "
             >
+              {isMobileMenuOpen ? (
+                <X className="w-5 h-5" />
+              ) : (
+                <Menu className="w-5 h-5" />
+              )}
+            </button>
+
+            {/* Logo */}
+            <div
+              className="
+                w-9
+                h-9
+                rounded-xl
+                bg-white
+                p-1
+                overflow-hidden
+                flex
+                items-center
+                justify-center
+                shrink-0
+              "
+            >
+              <img
+                src={
+                  settings.customLogoUrl ||
+                  LogoImage
+                }
+                alt={
+                  settings.brandName ||
+                  'Meera Fashion'
+                }
+                className="
+                  w-full
+                  h-full
+                  object-contain
+                "
+              />
+            </div>
+
+            {/* Brand */}
+            <div className="min-w-0">
+              <h1
+                className="
+                  text-sm
+                  font-serif
+                  font-bold
+                  text-white
+                  truncate
+                "
+              >
+                {settings.brandName ||
+                  'Meera Fashion'}
+              </h1>
+
+              <p
+                className="
+                  text-[9px]
+                  text-rose-200/60
+                  uppercase
+                  tracking-widest
+                  truncate
+                "
+              >
+                {activeTabLabel}
+              </p>
+            </div>
+          </div>
+
+          {/* Right Side */}
+          <div
+            className="
+              flex
+              items-center
+              gap-2
+              shrink-0
+            "
+          >
+            {/* Online Indicator */}
+            <span
+              className="
+                relative
+                flex
+                w-2
+                h-2
+              "
+            >
+              <span
+                className="
+                  absolute
+                  inline-flex
+                  w-full
+                  h-full
+                  rounded-full
+                  bg-emerald-400
+                  opacity-75
+                  animate-ping
+                "
+              />
 
               <span
                 className="
                   relative
-                  flex
+                  inline-flex
                   w-2
                   h-2
-                  shrink-0
+                  rounded-full
+                  bg-emerald-400
                 "
-                aria-hidden="true"
-              >
+              />
+            </span>
+          </div>
+        </div>
 
-                <span
+        {/* ===================================================
+            MOBILE MENU
+        ==================================================== */}
+        {isMobileMenuOpen && (
+          <div
+            className="
+              border-t
+              border-white/10
+              bg-[#1C1217]
+              shadow-2xl
+              shadow-black/50
+              max-h-[calc(100vh-4rem)]
+              overflow-y-auto
+            "
+          >
+            <div className="p-3 space-y-3">
+              {/* Menu Header */}
+              <div
+                className="
+                  px-2
+                  py-1
+                  flex
+                  items-center
+                  justify-between
+                "
+              >
+                <div>
+                  <p
+                    className="
+                      text-[9px]
+                      text-rose-300/60
+                      uppercase
+                      tracking-[0.2em]
+                      font-semibold
+                    "
+                  >
+                    Navigation
+                  </p>
+
+                  <p
+                    className="
+                      text-xs
+                      text-white/70
+                      mt-0.5
+                    "
+                  >
+                    Admin Control Panel
+                  </p>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() =>
+                    setIsMobileMenuOpen(
+                      false
+                    )
+                  }
                   className="
-                    absolute
-                    inline-flex
+                    w-8
+                    h-8
+                    flex
+                    items-center
+                    justify-center
+                    rounded-lg
+                    text-white/50
+                    hover:text-white
+                    hover:bg-white/5
+                    transition
+                    cursor-pointer
+                  "
+                  aria-label="Close menu"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+
+              {/* Navigation */}
+              <nav className="space-y-1">
+                {ADMIN_TABS.map((item) => {
+                  const Icon = item.icon;
+                  const isActive =
+                    activeTab === item.id;
+
+                  const badge =
+                    badges[item.id];
+
+                  return (
+                    <button
+                      key={item.id}
+                      type="button"
+                      onClick={() =>
+                        handleTabChange(
+                          item.id
+                        )
+                      }
+                      className={`
+                        w-full
+                        min-h-12
+                        flex
+                        items-center
+                        justify-between
+                        px-3
+                        py-3
+                        rounded-xl
+                        text-sm
+                        font-bold
+                        transition-all
+                        duration-200
+                        cursor-pointer
+                        active:scale-[0.98]
+
+                        ${
+                          isActive
+                            ? `
+                              bg-gradient-to-r
+                              from-[#9E315A]
+                              to-[#C94F7C]
+                              text-white
+                              shadow-lg
+                              shadow-rose-950/30
+                            `
+                            : `
+                              text-rose-100/70
+                              hover:text-white
+                              hover:bg-white/5
+                            `
+                        }
+                      `}
+                    >
+                      <div
+                        className="
+                          flex
+                          items-center
+                          gap-3
+                          min-w-0
+                        "
+                      >
+                        <Icon
+                          className="
+                            w-[18px]
+                            h-[18px]
+                            shrink-0
+                          "
+                        />
+
+                        <span className="truncate">
+                          {item.label}
+                        </span>
+                      </div>
+
+                      {badge !== undefined &&
+                        (badge === 'WebP' ? (
+                          <span
+                            className="
+                              text-[8px]
+                              uppercase
+                              tracking-wider
+                              font-bold
+                              text-rose-300
+                              bg-rose-900/40
+                              px-1.5
+                              py-0.5
+                              rounded-md
+                              shrink-0
+                              ml-2
+                            "
+                          >
+                            {badge}
+                          </span>
+                        ) : (
+                          <span
+                            className={`
+                              text-[10px]
+                              px-2
+                              py-0.5
+                              rounded-full
+                              font-mono
+                              shrink-0
+                              ml-2
+
+                              ${
+                                typeof badge ===
+                                  'string' &&
+                                badge.includes(
+                                  'New'
+                                )
+                                  ? `
+                                    bg-[#25D366]
+                                    text-white
+                                  `
+                                  : `
+                                    bg-white/10
+                                    text-rose-100
+                                  `
+                              }
+                            `}
+                          >
+                            {badge}
+                          </span>
+                        ))}
+                    </button>
+                  );
+                })}
+              </nav>
+
+              {/* Divider */}
+              <div className="border-t border-white/10" />
+
+              {/* WhatsApp */}
+              <button
+                type="button"
+                onClick={handleWhatsApp}
+                className="
+                  w-full
+                  min-h-11
+                  flex
+                  items-center
+                  justify-center
+                  gap-2
+                  px-3
+                  py-2.5
+                  rounded-xl
+                  bg-white/5
+                  hover:bg-white/10
+                  border
+                  border-white/10
+                  text-white
+                  text-xs
+                  font-semibold
+                  transition-all
+                  active:scale-[0.98]
+                  cursor-pointer
+                "
+              >
+                <MessageCircle
+                  className="
+                    w-4
+                    h-4
+                    text-[#25D366]
+                  "
+                />
+
+                <span>
+                  Test WhatsApp Concierge
+                </span>
+              </button>
+
+              {/* Logout */}
+              <button
+                type="button"
+                onClick={
+                  handleLogoutAction
+                }
+                className="
+                  w-full
+                  min-h-11
+                  flex
+                  items-center
+                  justify-center
+                  gap-2
+                  px-3
+                  py-2.5
+                  rounded-xl
+                  bg-rose-600/20
+                  hover:bg-rose-600/30
+                  border
+                  border-rose-500/30
+                  text-rose-200
+                  hover:text-white
+                  text-xs
+                  font-bold
+                  transition-all
+                  active:scale-[0.98]
+                  cursor-pointer
+                "
+              >
+                <LogOut
+                  className="
+                    w-4
+                    h-4
+                    text-rose-400
+                  "
+                />
+
+                <span>
+                  Admin Logout
+                </span>
+              </button>
+
+              {/* Mobile Footer */}
+              <div
+                className="
+                  text-center
+                  pt-1
+                  pb-2
+                "
+              >
+                <p
+                  className="
+                    text-[9px]
+                    text-rose-200/40
+                    font-mono
+                  "
+                >
+                  Meera Fashion CMS • London UK
+                </p>
+
+                <p
+                  className="
+                    text-[9px]
+                    text-rose-200/60
+                    mt-0.5
+                  "
+                >
+                  Developed by{' '}
+                  <span
+                    className="
+                      font-bold
+                      text-white/80
+                    "
+                  >
+                    NeirahTech
+                  </span>
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
+      </header>
+
+      {/* =====================================================
+          DESKTOP SIDEBAR
+          Visible only at lg and above
+      ====================================================== */}
+      <aside
+        className="
+          hidden
+          lg:flex
+          lg:w-72
+          lg:shrink-0
+          bg-[#1C1217]/98
+          backdrop-blur-2xl
+          border
+          border-white/10
+          rounded-3xl
+          p-4
+          flex-col
+          shadow-2xl
+          shadow-black/90
+          h-[calc(100vh-1rem)]
+          max-h-screen
+          overflow-hidden
+          sticky
+          top-2
+          z-30
+        "
+      >
+        <div
+          className="
+            space-y-3
+            flex-1
+            flex
+            flex-col
+            min-h-0
+          "
+        >
+          {/* Desktop Header */}
+          <div
+            className="
+              flex
+              items-center
+              justify-between
+              pb-3
+              border-b
+              border-white/10
+              shrink-0
+            "
+          >
+            <div
+              className="
+                flex
+                items-center
+                gap-2.5
+                min-w-0
+              "
+            >
+              <div
+                className="
+                  relative
+                  flex
+                  items-center
+                  justify-center
+                  w-12
+                  h-12
+                  rounded-2xl
+                  bg-white/90
+                  shadow-[0_0_20px_rgba(255,255,255,0.25)]
+                  border
+                  border-white/40
+                  overflow-hidden
+                  shrink-0
+                  p-1
+                "
+              >
+                <img
+                  src={
+                    settings.customLogoUrl ||
+                    LogoImage
+                  }
+                  alt={
+                    settings.brandName ||
+                    'Meera Fashion'
+                  }
+                  className="
                     w-full
                     h-full
-                    rounded-full
-                    bg-emerald-400
-                    opacity-75
-                    animate-ping
+                    object-contain
                   "
                 />
+              </div>
 
-                <span
+              <div className="min-w-0">
+                <h2
                   className="
-                    relative
-                    inline-flex
-                    w-2
-                    h-2
-                    rounded-full
-                    bg-emerald-400
+                    font-serif
+                    text-base
+                    font-bold
+                    text-white
+                    tracking-wide
+                    truncate
                   "
-                />
+                >
+                  {settings.brandName ||
+                    'Meera Fashion'}
+                </h2>
 
-              </span>
+                <p
+                  className="
+                    text-[10px]
+                    text-rose-200/70
+                    uppercase
+                    tracking-widest
+                    truncate
+                  "
+                >
+                  {settings.tagline ||
+                    'Boutique CMS'}
+                </p>
+              </div>
+            </div>
+          </div>
+
+          {/* Live Status */}
+          <div
+            className="
+              flex
+              items-center
+              gap-1.5
+              px-1
+              shrink-0
+            "
+          >
+            <span
+              className="
+                relative
+                flex
+                w-2
+                h-2
+                shrink-0
+              "
+              aria-hidden="true"
+            >
+              <span
+                className="
+                  absolute
+                  inline-flex
+                  w-full
+                  h-full
+                  rounded-full
+                  bg-emerald-400
+                  opacity-75
+                  animate-ping
+                "
+              />
 
               <span
                 className="
-                  text-[10px]
-                  text-rose-200/80
-                  font-mono
-                  uppercase
-                  tracking-widest
-                  font-semibold
+                  relative
+                  inline-flex
+                  w-2
+                  h-2
+                  rounded-full
+                  bg-emerald-400
                 "
-              >
-                CMS Live • London
-              </span>
+              />
+            </span>
 
-            </div>
-
+            <span
+              className="
+                text-[10px]
+                text-rose-200/80
+                font-mono
+                uppercase
+                tracking-widest
+                font-semibold
+              "
+            >
+              CMS Live • London
+            </span>
           </div>
 
-        </div>
-
-        {/* ========================================================
-            NAVIGATION
-        ======================================================== */}
-
-        <nav
-          className="
-            space-y-1
-            overflow-y-auto
-            no-scrollbar
-            max-h-[calc(100vh-220px)]
-          "
-        >
-
-          {ADMIN_TABS.map(
-            (item) => {
-
-              const Icon =
-                item.icon;
-
+          {/* Desktop Navigation */}
+          <nav
+            className="
+              flex-1
+              overflow-y-auto
+              no-scrollbar
+              pr-0.5
+              space-y-1
+              min-h-0
+            "
+          >
+            {ADMIN_TABS.map((item) => {
+              const Icon = item.icon;
               const isActive =
-                activeTab ===
-                item.id;
+                activeTab === item.id;
 
               const badge =
-                badges[
-                  item.id
-                ];
+                badges[item.id];
 
               return (
                 <button
-                  key={
-                    item.id
-                  }
+                  key={item.id}
                   type="button"
                   onClick={() =>
-                    setActiveTab(
-                      item.id
-                    )
+                    setActiveTab(item.id)
                   }
                   id={`admin-nav-${item.id}`}
                   className={`
                     w-full
+                    min-h-10
                     flex
                     items-center
                     justify-between
                     px-3.5
-                    py-2.5
+                    py-2
                     rounded-2xl
-                    text-xs
+                    text-sm
                     font-bold
                     transition-all
                     duration-200
                     cursor-pointer
+                    active:scale-[0.98]
 
                     ${
                       isActive
                         ? `
-                          bg-linear-to-r
+                          bg-gradient-to-r
                           from-[#9E315A]
                           to-[#C94F7C]
                           text-white
-                          shadow-lg
-                          shadow-rose-950/50
-                          scale-[1.02]
+                          shadow-md
+                          shadow-rose-950/40
+                          scale-[1.01]
                         `
                         : `
                           text-rose-100/70
@@ -521,11 +931,6 @@ export const AdminSidebar: React.FC<
                     }
                   `}
                 >
-
-                  {/* ==================================================
-                      LEFT SIDE
-                  ================================================== */}
-
                   <div
                     className="
                       flex
@@ -534,35 +939,21 @@ export const AdminSidebar: React.FC<
                       min-w-0
                     "
                   >
-
                     <Icon
                       className="
-                        w-4
-                        h-4
+                        w-[18px]
+                        h-[18px]
                         shrink-0
                       "
                     />
 
-                    <span
-                      className="
-                        truncate
-                      "
-                    >
+                    <span className="truncate">
                       {item.label}
                     </span>
-
                   </div>
 
-                  {/* ==================================================
-                      BADGE
-                  ================================================== */}
-
-                  {badge !==
-                    undefined && (
-
-                    badge ===
-                    'WebP' ? (
-
+                  {badge !== undefined &&
+                    (badge === 'WebP' ? (
                       <span
                         className="
                           text-[9px]
@@ -575,13 +966,12 @@ export const AdminSidebar: React.FC<
                           py-0.5
                           rounded-md
                           shrink-0
+                          ml-2
                         "
                       >
                         {badge}
                       </span>
-
                     ) : (
-
                       <span
                         className={`
                           text-[10px]
@@ -590,13 +980,12 @@ export const AdminSidebar: React.FC<
                           rounded-full
                           font-mono
                           shrink-0
+                          ml-2
 
                           ${
                             typeof badge ===
                               'string' &&
-                            badge.includes(
-                              'New'
-                            )
+                            badge.includes('New')
                               ? `
                                 bg-[#25D366]
                                 text-white
@@ -610,125 +999,145 @@ export const AdminSidebar: React.FC<
                       >
                         {badge}
                       </span>
-
-                    )
-
-                  )}
-
+                    ))}
                 </button>
               );
-            }
-          )}
-
-        </nav>
-
-      </div>
-
-      {/* ==========================================================
-          BOTTOM
-      ============================================================== */}
-
-      <div
-        className="
-          pt-4
-          border-t
-          border-white/10
-          space-y-2.5
-        "
-      >
-
-        {/* ========================================================
-            WHATSAPP
-        ======================================================== */}
-
-        <button
-          type="button"
-          onClick={() =>
-            openWhatsAppChat(
-              settings.whatsappNumber,
-              'Hello Meera Fashion Concierge Test.'
-            )
-          }
-          className="
-            w-full
-            flex
-            items-center
-            justify-center
-            gap-2
-            py-2
-            rounded-xl
-            bg-white/5
-            hover:bg-white/10
-            border
-            border-white/10
-            text-white
-            text-xs
-            font-semibold
-            transition-all
-            cursor-pointer
-          "
-        >
-
-          <MessageCircle
-            className="
-              w-3.5
-              h-3.5
-              text-[#25D366]
-            "
-          />
-
-          <span>
-            Test WhatsApp Concierge
-          </span>
-
-        </button>
-
-        {/* ========================================================
-            FOOTER
-        ======================================================== */}
-
-        <div
-          className="
-            text-center
-            space-y-1
-          "
-        >
-
-          <p
-            className="
-              text-[10px]
-              text-rose-200/50
-              font-mono
-            "
-          >
-            Meera Fashion CMS • London UK
-          </p>
-
-          <p
-            className="
-              text-[10px]
-              text-rose-200/80
-            "
-          >
-            Developed by{' '}
-
-            <span
-              className="
-                font-bold
-                text-white
-                tracking-wide
-              "
-            >
-              NeirahTech
-            </span>
-
-          </p>
-
+            })}
+          </nav>
         </div>
 
-      </div>
+        {/* Desktop Footer */}
+        <div
+          className="
+            pt-3
+            mt-2
+            border-t
+            border-white/10
+            space-y-2
+            shrink-0
+          "
+        >
+          {/* WhatsApp */}
+          <button
+            type="button"
+            onClick={handleWhatsApp}
+            className="
+              w-full
+              min-h-10
+              flex
+              items-center
+              justify-center
+              gap-2
+              px-3
+              py-2.5
+              rounded-xl
+              bg-white/5
+              hover:bg-white/10
+              border
+              border-white/10
+              text-white
+              text-xs
+              font-semibold
+              transition-all
+              active:scale-[0.98]
+              cursor-pointer
+            "
+          >
+            <MessageCircle
+              className="
+                w-3.5
+                h-3.5
+                text-[#25D366]
+              "
+            />
 
-    </aside>
+            <span>
+              Test WhatsApp Concierge
+            </span>
+          </button>
+
+          {/* Logout */}
+          <button
+            type="button"
+            onClick={
+              handleLogoutAction
+            }
+            className="
+              w-full
+              min-h-10
+              flex
+              items-center
+              justify-center
+              gap-2
+              px-3
+              py-2.5
+              rounded-xl
+              bg-rose-600/20
+              hover:bg-rose-600/30
+              border
+              border-rose-500/30
+              text-rose-200
+              hover:text-white
+              text-xs
+              font-bold
+              transition-all
+              active:scale-[0.98]
+              cursor-pointer
+            "
+          >
+            <LogOut
+              className="
+                w-3.5
+                h-3.5
+                text-rose-400
+              "
+            />
+
+            <span>
+              Admin Logout
+            </span>
+          </button>
+
+          {/* Footer */}
+          <div
+            className="
+              text-center
+              space-y-0.5
+              pt-0.5
+            "
+          >
+            <p
+              className="
+                text-[9px]
+                text-rose-200/50
+                font-mono
+                truncate
+              "
+            >
+              Meera Fashion CMS • London UK
+            </p>
+
+            <p
+              className="
+                text-[9px]
+                text-rose-200/80
+              "
+            >
+              Developed by{' '}
+              <span
+                className="
+                  font-bold
+                  text-white
+                  tracking-wide
+                "
+              >
+                NeirahTech
+              </span>
+            </p>
+          </div>
+        </div>
+      </aside>
+    </>
   );
 };
 

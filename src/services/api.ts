@@ -26,6 +26,7 @@ const API_BASE = (
   import.meta.env.VITE_API_BASE_URL || ''
 ).replace(/\/$/, '');
 
+
 // =============================================================
 // GENERIC API REQUEST
 // =============================================================
@@ -346,3 +347,45 @@ export async function saveRemoteProducts(
     }
   );
 }
+
+export const deleteEnquiry = async (
+  enquiryId: string
+) => {
+  if (!enquiryId) {
+    throw new Error('Enquiry ID is required.');
+  }
+
+  const response = await fetch(
+    `${API_BASE}/api/enquiries/${encodeURIComponent(enquiryId)}`,
+    {
+      method: 'DELETE',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    }
+  );
+
+  let data: any = null;
+
+  try {
+    data = await response.json();
+  } catch {
+    data = null;
+  }
+
+  if (!response.ok) {
+    throw new Error(
+      data?.message ||
+      `Failed to delete enquiry (${response.status})`
+    );
+  }
+
+  if (!data?.ok) {
+    throw new Error(
+      data?.message ||
+      'Failed to delete enquiry.'
+    );
+  }
+
+  return data;
+};

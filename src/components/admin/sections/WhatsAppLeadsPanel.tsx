@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
   MessageCircle,
   Eye,
@@ -51,13 +51,18 @@ interface WhatsAppLeadsPanelProps {
     enquiry: EnquiryOrder
   ) => void;
 
+  /**
+   * Parent function must:
+   * 1. Delete enquiry from database
+   * 2. Remove enquiry from local state
+   */
   handleDeleteEnquiry: (
     enquiry: EnquiryOrder
-  ) => void;
+  ) => void | Promise<void>;
 
   /**
-   * This function must update the database
-   * and then update the local enquiries state.
+   * Updates enquiry status in database
+   * and then updates local enquiries state.
    */
   handleRequestEnquiryStatusChange: (
     enquiry: EnquiryOrder,
@@ -128,6 +133,57 @@ export const WhatsAppLeadsPanel: React.FC<
   handleDeleteEnquiry,
   handleRequestEnquiryStatusChange,
 }) => {
+
+  /* ================================================================
+     DELETE CONFIRMATION STATE
+  ================================================================ */
+
+  const [deleteTarget, setDeleteTarget] =
+    useState<EnquiryOrder | null>(null);
+
+  const [isDeleting, setIsDeleting] =
+    useState(false);
+
+  /* ================================================================
+     DELETE HANDLER
+  ================================================================ */
+
+  const confirmDelete = async () => {
+    if (!deleteTarget || isDeleting) {
+      return;
+    }
+
+    try {
+      setIsDeleting(true);
+
+      /*
+       * IMPORTANT:
+       *
+       * The parent handler should delete the enquiry
+       * from the database and update the local state.
+       */
+      await handleDeleteEnquiry(deleteTarget);
+
+      /*
+       * Close confirmation modal only after
+       * delete operation succeeds.
+       */
+      setDeleteTarget(null);
+
+    } catch (error) {
+      console.error(
+        'Failed to delete enquiry:',
+        error
+      );
+
+      alert(
+        'Failed to delete this enquiry. Please try again.'
+      );
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
   return (
     <div className="space-y-6 animate-fadeIn">
 
@@ -230,6 +286,7 @@ export const WhatsAppLeadsPanel: React.FC<
           text-center
           shadow-sm
         ">
+
           <MessageCircle className="
             w-10
             h-10
@@ -253,6 +310,7 @@ export const WhatsAppLeadsPanel: React.FC<
           ">
             New WhatsApp enquiries will appear here.
           </p>
+
         </div>
       )}
 
@@ -571,13 +629,6 @@ export const WhatsAppLeadsPanel: React.FC<
                         return;
                       }
 
-                      /*
-                       * IMPORTANT:
-                       *
-                       * This calls the parent handler.
-                       * The parent handler must make the
-                       * PATCH request to the backend.
-                       */
                       await handleRequestEnquiryStatusChange(
                         enq,
                         nextStatus
@@ -785,9 +836,7 @@ export const WhatsAppLeadsPanel: React.FC<
                   <button
                     type="button"
                     onClick={() =>
-                      handleDeleteEnquiry(
-                        enq
-                      )
+                      setDeleteTarget(enq)
                     }
                     className="
                       p-2
@@ -817,6 +866,204 @@ export const WhatsAppLeadsPanel: React.FC<
         })}
 
       </div>
+
+      {/* ==========================================================
+          DELETE CONFIRMATION MODAL
+      ========================================================== */}
+
+      {deleteTarget && (
+        <div className="
+          fixed
+          inset-0
+          z-[9999]
+          flex
+          items-center
+          justify-center
+          bg-black/40
+          backdrop-blur-sm
+          p-4
+        ">
+
+          <div className="
+            w-full
+            max-w-md
+            bg-white
+            rounded-3xl
+            shadow-2xl
+            border
+            border-rose-100
+            overflow-hidden
+          ">
+
+            {/* MODAL HEADER */}
+
+            <div className="
+              p-6
+              border-b
+              border-rose-100
+            ">
+
+              <div className="
+                flex
+                items-center
+                gap-3
+              ">
+
+                <div className="
+                  w-11
+                  h-11
+                  rounded-2xl
+                  bg-red-50
+                  flex
+                  items-center
+                  justify-center
+                ">
+
+                  <Trash2 className="
+                    w-5
+                    h-5
+                    text-red-600
+                  " />
+
+                </div>
+
+                <div>
+
+                  <h3 className="
+                    font-serif
+                    font-bold
+                    text-lg
+                    text-[#241B20]
+                  ">
+                    Delete Enquiry?
+                  </h3>
+
+                  <p className="
+                    text-xs
+                    text-[#8C5D6C]
+                    mt-0.5
+                  ">
+                    This action cannot be undone.
+                  </p>
+
+                </div>
+
+              </div>
+
+            </div>
+
+            {/* MODAL CONTENT */}
+
+            <div className="p-6">
+
+              <div className="
+                bg-rose-50
+                border
+                border-rose-100
+                rounded-2xl
+                p-4
+              ">
+
+                <p className="
+                  text-sm
+                  font-bold
+                  text-[#241B20]
+                ">
+                  {deleteTarget.customerName}
+                </p>
+
+                <p className="
+                  text-xs
+                  text-[#8C5D6C]
+                  mt-1
+                ">
+                  Order: {deleteTarget.orderNumber}
+                </p>
+
+              </div>
+
+              <p className="
+                text-sm
+                text-[#5A4550]
+                mt-4
+                leading-relaxed
+              ">
+                Are you sure you want to permanently delete
+                this enquiry? The enquiry will be removed from
+                the database and will no longer appear in the
+                admin portal.
+              </p>
+
+            </div>
+
+            {/* MODAL ACTIONS */}
+
+            <div className="
+              flex
+              flex-col-reverse
+              sm:flex-row
+              justify-end
+              gap-2
+              p-6
+              pt-0
+            ">
+
+              <button
+                type="button"
+                disabled={isDeleting}
+                onClick={() =>
+                  setDeleteTarget(null)
+                }
+                className="
+                  px-5
+                  py-2.5
+                  rounded-2xl
+                  border
+                  border-rose-200
+                  bg-white
+                  hover:bg-rose-50
+                  text-[#5A4550]
+                  text-sm
+                  font-bold
+                  transition-all
+                  disabled:opacity-50
+                  cursor-pointer
+                "
+              >
+                Cancel
+              </button>
+
+              <button
+                type="button"
+                disabled={isDeleting}
+                onClick={confirmDelete}
+                className="
+                  px-5
+                  py-2.5
+                  rounded-2xl
+                  bg-red-600
+                  hover:bg-red-700
+                  text-white
+                  text-sm
+                  font-bold
+                  transition-all
+                  shadow-md
+                  disabled:opacity-50
+                  disabled:cursor-not-allowed
+                  cursor-pointer
+                "
+              >
+                {isDeleting
+                  ? 'Deleting...'
+                  : 'Yes, Delete'}
+              </button>
+
+            </div>
+
+          </div>
+
+        </div>
+      )}
 
     </div>
   );

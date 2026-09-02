@@ -1,10 +1,7 @@
-import React, { useMemo, useState } from 'react';
+import React, { useMemo } from 'react';
 import {
   MessageCircle,
   LogOut,
-  Menu,
-  X,
-  ChevronDown,
 } from 'lucide-react';
 
 import LogoImage from '../../assets/logo.png';
@@ -64,9 +61,6 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({
   invoiceCount: _invoiceCount,
   onLogout,
 }) => {
-  const [isMobileMenuOpen, setIsMobileMenuOpen] =
-    useState(false);
-
   const enquiryData = Array.isArray(enquiries)
     ? enquiries
     : [];
@@ -124,11 +118,6 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({
       (item) => item.id === activeTab
     )?.label || 'Dashboard';
 
-  const handleTabChange = (tab: AdminTabId) => {
-    setActiveTab(tab);
-    setIsMobileMenuOpen(false);
-  };
-
   const handleLogoutAction = () => {
     console.log(
       '=========================================='
@@ -149,8 +138,6 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({
     console.log(
       '✅ Admin authentication cleared'
     );
-
-    setIsMobileMenuOpen(false);
 
     if (onLogout) {
       console.log(
@@ -176,7 +163,6 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({
     <>
       {/* =====================================================
           MOBILE TOP BAR
-          Visible only below lg breakpoint
       ====================================================== */}
       <header
         className="
@@ -200,9 +186,10 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({
             flex
             items-center
             justify-between
+            gap-3
           "
         >
-          {/* Left Side */}
+          {/* Logo + Brand */}
           <div
             className="
               flex
@@ -211,48 +198,6 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({
               min-w-0
             "
           >
-            {/* Hamburger */}
-            <button
-              type="button"
-              onClick={() =>
-                setIsMobileMenuOpen(
-                  (prev) => !prev
-                )
-              }
-              aria-label={
-                isMobileMenuOpen
-                  ? 'Close admin menu'
-                  : 'Open admin menu'
-              }
-              aria-expanded={
-                isMobileMenuOpen
-              }
-              className="
-                w-10
-                h-10
-                flex
-                items-center
-                justify-center
-                rounded-xl
-                bg-white/5
-                border
-                border-white/10
-                text-white
-                hover:bg-white/10
-                transition-all
-                active:scale-95
-                cursor-pointer
-                shrink-0
-              "
-            >
-              {isMobileMenuOpen ? (
-                <X className="w-5 h-5" />
-              ) : (
-                <Menu className="w-5 h-5" />
-              )}
-            </button>
-
-            {/* Logo */}
             <div
               className="
                 w-9
@@ -284,7 +229,6 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({
               />
             </div>
 
-            {/* Brand */}
             <div className="min-w-0">
               <h1
                 className="
@@ -313,7 +257,7 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({
             </div>
           </div>
 
-          {/* Right Side */}
+          {/* Mobile Live Status */}
           <div
             className="
               flex
@@ -322,7 +266,6 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({
               shrink-0
             "
           >
-            {/* Online Indicator */}
             <span
               className="
                 relative
@@ -355,342 +298,26 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({
                 "
               />
             </span>
+
+            <span
+              className="
+                hidden
+                sm:block
+                text-[9px]
+                text-emerald-300/80
+                font-mono
+                uppercase
+                tracking-wider
+              "
+            >
+              Live
+            </span>
           </div>
         </div>
-
-        {/* ===================================================
-            MOBILE MENU
-        ==================================================== */}
-        {isMobileMenuOpen && (
-          <div
-            className="
-              border-t
-              border-white/10
-              bg-[#1C1217]
-              shadow-2xl
-              shadow-black/50
-              max-h-[calc(100vh-4rem)]
-              overflow-y-auto
-            "
-          >
-            <div className="p-3 space-y-3">
-              {/* Menu Header */}
-              <div
-                className="
-                  px-2
-                  py-1
-                  flex
-                  items-center
-                  justify-between
-                "
-              >
-                <div>
-                  <p
-                    className="
-                      text-[9px]
-                      text-rose-300/60
-                      uppercase
-                      tracking-[0.2em]
-                      font-semibold
-                    "
-                  >
-                    Navigation
-                  </p>
-
-                  <p
-                    className="
-                      text-xs
-                      text-white/70
-                      mt-0.5
-                    "
-                  >
-                    Admin Control Panel
-                  </p>
-                </div>
-
-                <button
-                  type="button"
-                  onClick={() =>
-                    setIsMobileMenuOpen(
-                      false
-                    )
-                  }
-                  className="
-                    w-8
-                    h-8
-                    flex
-                    items-center
-                    justify-center
-                    rounded-lg
-                    text-white/50
-                    hover:text-white
-                    hover:bg-white/5
-                    transition
-                    cursor-pointer
-                  "
-                  aria-label="Close menu"
-                >
-                  <X className="w-4 h-4" />
-                </button>
-              </div>
-
-              {/* Navigation */}
-              <nav className="space-y-1">
-                {ADMIN_TABS.map((item) => {
-                  const Icon = item.icon;
-                  const isActive =
-                    activeTab === item.id;
-
-                  const badge =
-                    badges[item.id];
-
-                  return (
-                    <button
-                      key={item.id}
-                      type="button"
-                      onClick={() =>
-                        handleTabChange(
-                          item.id
-                        )
-                      }
-                      className={`
-                        w-full
-                        min-h-12
-                        flex
-                        items-center
-                        justify-between
-                        px-3
-                        py-3
-                        rounded-xl
-                        text-sm
-                        font-bold
-                        transition-all
-                        duration-200
-                        cursor-pointer
-                        active:scale-[0.98]
-
-                        ${
-                          isActive
-                            ? `
-                              bg-gradient-to-r
-                              from-[#9E315A]
-                              to-[#C94F7C]
-                              text-white
-                              shadow-lg
-                              shadow-rose-950/30
-                            `
-                            : `
-                              text-rose-100/70
-                              hover:text-white
-                              hover:bg-white/5
-                            `
-                        }
-                      `}
-                    >
-                      <div
-                        className="
-                          flex
-                          items-center
-                          gap-3
-                          min-w-0
-                        "
-                      >
-                        <Icon
-                          className="
-                            w-[18px]
-                            h-[18px]
-                            shrink-0
-                          "
-                        />
-
-                        <span className="truncate">
-                          {item.label}
-                        </span>
-                      </div>
-
-                      {badge !== undefined &&
-                        (badge === 'WebP' ? (
-                          <span
-                            className="
-                              text-[8px]
-                              uppercase
-                              tracking-wider
-                              font-bold
-                              text-rose-300
-                              bg-rose-900/40
-                              px-1.5
-                              py-0.5
-                              rounded-md
-                              shrink-0
-                              ml-2
-                            "
-                          >
-                            {badge}
-                          </span>
-                        ) : (
-                          <span
-                            className={`
-                              text-[10px]
-                              px-2
-                              py-0.5
-                              rounded-full
-                              font-mono
-                              shrink-0
-                              ml-2
-
-                              ${
-                                typeof badge ===
-                                  'string' &&
-                                badge.includes(
-                                  'New'
-                                )
-                                  ? `
-                                    bg-[#25D366]
-                                    text-white
-                                  `
-                                  : `
-                                    bg-white/10
-                                    text-rose-100
-                                  `
-                              }
-                            `}
-                          >
-                            {badge}
-                          </span>
-                        ))}
-                    </button>
-                  );
-                })}
-              </nav>
-
-              {/* Divider */}
-              <div className="border-t border-white/10" />
-
-              {/* WhatsApp */}
-              <button
-                type="button"
-                onClick={handleWhatsApp}
-                className="
-                  w-full
-                  min-h-11
-                  flex
-                  items-center
-                  justify-center
-                  gap-2
-                  px-3
-                  py-2.5
-                  rounded-xl
-                  bg-white/5
-                  hover:bg-white/10
-                  border
-                  border-white/10
-                  text-white
-                  text-xs
-                  font-semibold
-                  transition-all
-                  active:scale-[0.98]
-                  cursor-pointer
-                "
-              >
-                <MessageCircle
-                  className="
-                    w-4
-                    h-4
-                    text-[#25D366]
-                  "
-                />
-
-                <span>
-                  Test WhatsApp Concierge
-                </span>
-              </button>
-
-              {/* Logout */}
-              <button
-                type="button"
-                onClick={
-                  handleLogoutAction
-                }
-                className="
-                  w-full
-                  min-h-11
-                  flex
-                  items-center
-                  justify-center
-                  gap-2
-                  px-3
-                  py-2.5
-                  rounded-xl
-                  bg-rose-600/20
-                  hover:bg-rose-600/30
-                  border
-                  border-rose-500/30
-                  text-rose-200
-                  hover:text-white
-                  text-xs
-                  font-bold
-                  transition-all
-                  active:scale-[0.98]
-                  cursor-pointer
-                "
-              >
-                <LogOut
-                  className="
-                    w-4
-                    h-4
-                    text-rose-400
-                  "
-                />
-
-                <span>
-                  Admin Logout
-                </span>
-              </button>
-
-              {/* Mobile Footer */}
-              <div
-                className="
-                  text-center
-                  pt-1
-                  pb-2
-                "
-              >
-                <p
-                  className="
-                    text-[9px]
-                    text-rose-200/40
-                    font-mono
-                  "
-                >
-                  Meera Fashion CMS • London UK
-                </p>
-
-                <p
-                  className="
-                    text-[9px]
-                    text-rose-200/60
-                    mt-0.5
-                  "
-                >
-                  Developed by{' '}
-                  <span
-                    className="
-                      font-bold
-                      text-white/80
-                    "
-                  >
-                    NeirahTech
-                  </span>
-                </p>
-              </div>
-            </div>
-          </div>
-        )}
       </header>
 
       {/* =====================================================
           DESKTOP SIDEBAR
-          Visible only at lg and above
       ====================================================== */}
       <aside
         className="
@@ -698,42 +325,42 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({
           lg:flex
           lg:w-72
           lg:shrink-0
+
           bg-[#1C1217]/98
           backdrop-blur-2xl
+
           border
           border-white/10
           rounded-3xl
-          p-4
+
+          p-5
+
           flex-col
+          justify-between
+
           shadow-2xl
           shadow-black/90
-          h-[calc(100vh-1rem)]
-          max-h-screen
-          overflow-hidden
+
+          h-[calc(100vh-2rem)]
+
           sticky
-          top-2
+          top-4
+
           z-30
         "
       >
-        <div
-          className="
-            space-y-3
-            flex-1
-            flex
-            flex-col
-            min-h-0
-          "
-        >
-          {/* Desktop Header */}
+        {/* =====================================================
+            TOP SECTION (Logo & Status)
+        ===================================================== */}
+        <div className="space-y-3.5 shrink-0">
           <div
             className="
               flex
               items-center
               justify-between
-              pb-3
+              pb-3.5
               border-b
               border-white/10
-              shrink-0
             "
           >
             <div
@@ -810,14 +437,12 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({
             </div>
           </div>
 
-          {/* Live Status */}
           <div
             className="
               flex
               items-center
               gap-1.5
               px-1
-              shrink-0
             "
           >
             <span
@@ -868,152 +493,155 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({
               CMS Live • London
             </span>
           </div>
-
-          {/* Desktop Navigation */}
-          <nav
-            className="
-              flex-1
-              overflow-y-auto
-              no-scrollbar
-              pr-0.5
-              space-y-1
-              min-h-0
-            "
-          >
-            {ADMIN_TABS.map((item) => {
-              const Icon = item.icon;
-              const isActive =
-                activeTab === item.id;
-
-              const badge =
-                badges[item.id];
-
-              return (
-                <button
-                  key={item.id}
-                  type="button"
-                  onClick={() =>
-                    setActiveTab(item.id)
-                  }
-                  id={`admin-nav-${item.id}`}
-                  className={`
-                    w-full
-                    min-h-10
-                    flex
-                    items-center
-                    justify-between
-                    px-3.5
-                    py-2
-                    rounded-2xl
-                    text-sm
-                    font-bold
-                    transition-all
-                    duration-200
-                    cursor-pointer
-                    active:scale-[0.98]
-
-                    ${
-                      isActive
-                        ? `
-                          bg-gradient-to-r
-                          from-[#9E315A]
-                          to-[#C94F7C]
-                          text-white
-                          shadow-md
-                          shadow-rose-950/40
-                          scale-[1.01]
-                        `
-                        : `
-                          text-rose-100/70
-                          hover:text-white
-                          hover:bg-white/5
-                        `
-                    }
-                  `}
-                >
-                  <div
-                    className="
-                      flex
-                      items-center
-                      gap-3
-                      min-w-0
-                    "
-                  >
-                    <Icon
-                      className="
-                        w-[18px]
-                        h-[18px]
-                        shrink-0
-                      "
-                    />
-
-                    <span className="truncate">
-                      {item.label}
-                    </span>
-                  </div>
-
-                  {badge !== undefined &&
-                    (badge === 'WebP' ? (
-                      <span
-                        className="
-                          text-[9px]
-                          uppercase
-                          tracking-wider
-                          font-bold
-                          text-rose-300
-                          bg-rose-900/40
-                          px-1.5
-                          py-0.5
-                          rounded-md
-                          shrink-0
-                          ml-2
-                        "
-                      >
-                        {badge}
-                      </span>
-                    ) : (
-                      <span
-                        className={`
-                          text-[10px]
-                          px-2
-                          py-0.5
-                          rounded-full
-                          font-mono
-                          shrink-0
-                          ml-2
-
-                          ${
-                            typeof badge ===
-                              'string' &&
-                            badge.includes('New')
-                              ? `
-                                bg-[#25D366]
-                                text-white
-                              `
-                              : `
-                                bg-white/10
-                                text-rose-100
-                              `
-                          }
-                        `}
-                      >
-                        {badge}
-                      </span>
-                    ))}
-                </button>
-              );
-            })}
-          </nav>
         </div>
 
-        {/* Desktop Footer */}
+        {/* =====================================================
+            MIDDLE NAVIGATION (Natural Native Scrolling)
+        ===================================================== */}
+        <nav
+          className="
+            flex-1
+            overflow-y-auto
+            my-3
+            pr-1
+            space-y-1
+            min-h-0
+          "
+        >
+          {ADMIN_TABS.map((item) => {
+            const Icon = item.icon;
+
+            const isActive =
+              activeTab === item.id;
+
+            const badge =
+              badges[item.id];
+
+            return (
+              <button
+                key={item.id}
+                type="button"
+                onClick={() =>
+                  setActiveTab(item.id)
+                }
+                id={`admin-nav-${item.id}`}
+                className={`
+                  w-full
+                  min-h-9
+                  flex
+                  items-center
+                  justify-between
+                  px-3.5
+                  py-2
+                  rounded-2xl
+                  text-sm
+                  font-bold
+                  transition-all
+                  duration-200
+                  cursor-pointer
+                  active:scale-[0.98]
+
+                  ${
+                    isActive
+                      ? `
+                        bg-gradient-to-r
+                        from-[#9E315A]
+                        to-[#C94F7C]
+                        text-white
+                        shadow-md
+                        shadow-rose-950/40
+                        scale-[1.01]
+                      `
+                      : `
+                        text-rose-100/70
+                        hover:text-white
+                        hover:bg-white/5
+                      `
+                  }
+                `}
+              >
+                <div
+                  className="
+                    flex
+                    items-center
+                    gap-3
+                    min-w-0
+                  "
+                >
+                  <Icon
+                    className="
+                      w-[18px]
+                      h-[18px]
+                      shrink-0
+                    "
+                  />
+
+                  <span className="truncate">
+                    {item.label}
+                  </span>
+                </div>
+
+                {badge !== undefined &&
+                  (badge === 'WebP' ? (
+                    <span
+                      className="
+                        text-[9px]
+                        uppercase
+                        tracking-wider
+                        font-bold
+                        text-rose-300
+                        bg-rose-900/40
+                        px-1.5
+                        py-0.5
+                        rounded-md
+                        shrink-0
+                        ml-2
+                      "
+                    >
+                      {badge}
+                    </span>
+                  ) : (
+                    <span
+                      className={`
+                        text-[10px]
+                        px-2
+                        py-0.5
+                        rounded-full
+                        font-mono
+                        shrink-0
+                        ml-2
+
+                        ${
+                          typeof badge === 'string' &&
+                          badge.includes('New')
+                            ? `
+                              bg-[#25D366]
+                              text-white
+                            `
+                            : `
+                              bg-white/10
+                              text-rose-100
+                            `
+                        }
+                      `}
+                    >
+                      {badge}
+                    </span>
+                  ))}
+              </button>
+            );
+          })}
+        </nav>
+
+        {/* =====================================================
+            BOTTOM SECTION (WhatsApp, Logout, & Footer)
+        ===================================================== */}
         <div
           className="
-            pt-3
-            mt-2
+            pt-3.5
             border-t
             border-white/10
-            space-y-2
+            space-y-2.5
             shrink-0
           "
         >
@@ -1023,13 +651,13 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({
             onClick={handleWhatsApp}
             className="
               w-full
-              min-h-10
+              min-h-9
               flex
               items-center
               justify-center
               gap-2
               px-3
-              py-2.5
+              py-2
               rounded-xl
               bg-white/5
               hover:bg-white/10
@@ -1064,13 +692,13 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({
             }
             className="
               w-full
-              min-h-10
+              min-h-9
               flex
               items-center
               justify-center
               gap-2
               px-3
-              py-2.5
+              py-2
               rounded-xl
               bg-rose-600/20
               hover:bg-rose-600/30
@@ -1103,7 +731,7 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({
             className="
               text-center
               space-y-0.5
-              pt-0.5
+              pt-1
             "
           >
             <p

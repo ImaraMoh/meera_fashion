@@ -8,6 +8,7 @@ import {
   Camera,
   AlertCircle,
   Info,
+  Package,
 } from 'lucide-react';
 
 import {
@@ -57,7 +58,9 @@ type ProductImageKey =
   | 'detail'
   | 'wearing';
 
-export const ProductFormModal: React.FC<ProductFormModalProps> = ({
+export const ProductFormModal: React.FC<
+  ProductFormModalProps
+> = ({
   isOpen,
   product,
   products,
@@ -73,19 +76,32 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
     Record<string, string>
   >({});
 
-  const mainImageInputRef = useRef<HTMLInputElement>(null);
+  const mainImageInputRef =
+    useRef<HTMLInputElement>(null);
 
   if (!isOpen || !product) {
     return null;
   }
 
-  const updateProduct = (changes: Partial<Product>) => {
+  /**
+   * ------------------------------------------------------------
+   * Product Update
+   * ------------------------------------------------------------
+   */
+  const updateProduct = (
+    changes: Partial<Product>
+  ) => {
     onChange({
       ...product,
       ...changes,
     });
   };
 
+  /**
+   * ------------------------------------------------------------
+   * Image Update
+   * ------------------------------------------------------------
+   */
   const updateImages = (
     key: ProductImageKey,
     value: string
@@ -101,6 +117,11 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
     });
   };
 
+  /**
+   * ------------------------------------------------------------
+   * Image Upload
+   * ------------------------------------------------------------
+   */
   const handleImageUpload = async (
     event: React.ChangeEvent<HTMLInputElement>,
     imageKey: ProductImageKey
@@ -120,12 +141,17 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
         0.82
       );
 
-      updateImages(imageKey, result.dataUrl);
+      updateImages(
+        imageKey,
+        result.dataUrl
+      );
 
-      setCompressionStats((previous) => ({
-        ...previous,
-        [imageKey]: `${result.formattedCompressed} (${result.savingsPercentage}% smaller)`,
-      }));
+      setCompressionStats(
+        (previous) => ({
+          ...previous,
+          [imageKey]: `${result.formattedCompressed} (${result.savingsPercentage}% smaller)`,
+        })
+      );
 
       showToast(
         'Photo Compressed & Ready',
@@ -148,29 +174,128 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
     }
   };
 
+  /**
+   * ------------------------------------------------------------
+   * Remove Image
+   * ------------------------------------------------------------
+   */
   const handleRemoveImage = (
     imageKey: ProductImageKey
   ) => {
     updateImages(imageKey, '');
 
-    setCompressionStats((previous) => {
-      const next = {
-        ...previous,
-      };
+    setCompressionStats(
+      (previous) => {
+        const next = {
+          ...previous,
+        };
 
-      delete next[imageKey];
+        delete next[imageKey];
 
-      return next;
+        return next;
+      }
+    );
+  };
+
+  /**
+   * ------------------------------------------------------------
+   * Editing State
+   * ------------------------------------------------------------
+   */
+  const isEditing = Boolean(
+    product.id &&
+      products.some(
+        (item) =>
+          item.id === product.id
+      )
+  );
+
+  /**
+   * ------------------------------------------------------------
+   * Stock Quantity
+   * ------------------------------------------------------------
+   *
+   * This is the actual database stockQuantity field.
+   */
+  const stockQuantity =
+    product.stockQuantity ?? 0;
+
+  /**
+   * ------------------------------------------------------------
+   * Stock Quantity Change
+   * ------------------------------------------------------------
+   *
+   * Automatically keeps stockStatus synchronized
+   * for normal inventory products.
+   */
+  const handleStockQuantityChange = (
+    value: string
+  ) => {
+    const quantity =
+      value === ''
+        ? 0
+        : Math.max(
+            0,
+            Number(value)
+          );
+
+    const currentStatus =
+      product.stockStatus;
+
+    let nextStatus: StockStatus =
+      currentStatus || 'In Stock';
+
+    /**
+     * Automatically update status only for
+     * normal inventory statuses.
+     *
+     * Special statuses like Pre-Order,
+     * Coming Soon and Unavailable are preserved.
+     */
+    if (
+      currentStatus === 'In Stock' ||
+      currentStatus === 'Low Stock' ||
+      currentStatus === 'Out of Stock' ||
+      !currentStatus
+    ) {
+      if (quantity <= 0) {
+        nextStatus = 'Out of Stock';
+      } else if (quantity <= 5) {
+        nextStatus = 'Low Stock';
+      } else {
+        nextStatus = 'In Stock';
+      }
+    }
+
+    updateProduct({
+      stockQuantity: quantity,
+      stockStatus: nextStatus,
     });
   };
 
-  const isEditing = Boolean(
-    product.id &&
-      products.some((item) => item.id === product.id)
-  );
+  /**
+   * ------------------------------------------------------------
+   * Stock Status Change
+   * ------------------------------------------------------------
+   */
+  const handleStockStatusChange = (
+    value: StockStatus
+  ) => {
+    updateProduct({
+      stockStatus: value,
+    });
+  };
 
+  /**
+   * ------------------------------------------------------------
+   * Image Definitions
+   * ------------------------------------------------------------
+   */
   const imageDefinitions: Array<{
-    key: Exclude<ProductImageKey, 'main'>;
+    key: Exclude<
+      ProductImageKey,
+      'main'
+    >;
     label: string;
     hint: string;
   }> = [
@@ -198,11 +323,16 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
 
   return (
     <div className="fixed inset-0 z-[110] bg-black/75 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4 animate-fadeIn">
+
       <div className="bg-white rounded-3xl max-w-3xl w-full p-5 sm:p-6 max-h-[92vh] overflow-y-auto border border-rose-200 shadow-2xl space-y-4">
 
-        {/* Header */}
+        {/* ======================================================
+            HEADER
+        ====================================================== */}
         <div className="flex justify-between items-center pb-3 border-b border-rose-100">
+
           <div>
+
             <h3 className="font-serif font-bold text-lg sm:text-xl text-[#241B20]">
               {isEditing
                 ? 'Edit Boutique Product'
@@ -210,8 +340,9 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
             </h3>
 
             <p className="text-[11px] text-[#8C5D6C] mt-1">
-              Manage product information, stock and boutique photography.
+              Manage product information, pricing, stock and boutique photography.
             </p>
+
           </div>
 
           <button
@@ -221,6 +352,7 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
           >
             <X className="w-5 h-5" />
           </button>
+
         </div>
 
         <form
@@ -228,8 +360,11 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
           className="space-y-4 text-xs"
         >
 
-          {/* Product Title */}
+          {/* ====================================================
+              PRODUCT TITLE
+          ==================================================== */}
           <div>
+
             <label className="font-bold text-[#9E315A] uppercase block mb-1">
               Product Title
             </label>
@@ -246,26 +381,35 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
               }
               className="w-full bg-[#FFF8FA] border border-rose-200 rounded-xl p-2.5 text-xs text-[#241B20] outline-none focus:border-[#9E315A]"
             />
+
           </div>
 
-          {/* Category */}
+          {/* ====================================================
+              CATEGORY
+          ==================================================== */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
 
             <div>
+
               <label className="font-bold text-[#9E315A] uppercase block mb-1">
                 Category
               </label>
 
               <select
-                value={product.category || 'sarees'}
+                value={
+                  product.category ||
+                  'sarees'
+                }
                 onChange={(event) =>
                   updateProduct({
                     category:
-                      event.target.value as ProductCategory,
+                      event.target
+                        .value as ProductCategory,
                   })
                 }
                 className="w-full bg-[#FFF8FA] border border-rose-200 rounded-xl p-2.5 text-xs text-[#241B20]"
               >
+
                 <option value="sarees">
                   Sarees
                 </option>
@@ -285,10 +429,13 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
                 <option value="shalwar">
                   Shalwar
                 </option>
+
               </select>
+
             </div>
 
             <div>
+
               <label className="font-bold text-[#9E315A] uppercase block mb-1">
                 Subcategory / Style
               </label>
@@ -296,30 +443,40 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
               <input
                 type="text"
                 placeholder="e.g. Kanjivaram Silk, Kundan Bangles"
-                value={product.subcategory || ''}
+                value={
+                  product.subcategory ||
+                  ''
+                }
                 onChange={(event) =>
                   updateProduct({
-                    subcategory: event.target.value,
+                    subcategory:
+                      event.target.value,
                   })
                 }
                 className="w-full bg-[#FFF8FA] border border-rose-200 rounded-xl p-2.5 text-xs text-[#241B20]"
               />
+
             </div>
 
           </div>
 
-          {/* Pricing & Stock */}
+          {/* ====================================================
+              PRICING
+          ==================================================== */}
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
 
+            {/* Selling Price */}
             <div>
+
               <label className="font-bold text-[#9E315A] uppercase block mb-1">
-                Selling Price (£)
+                Selling Price
               </label>
 
               <input
                 type="number"
                 required
                 min="0"
+                step="0.01"
                 placeholder="e.g. 145"
                 value={
                   product.price === 0
@@ -329,98 +486,242 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
                 onChange={(event) =>
                   updateProduct({
                     price:
-                      Number(event.target.value) || 0,
+                      Number(
+                        event.target.value
+                      ) || 0,
                   })
                 }
                 className="w-full bg-[#FFF8FA] border border-rose-200 rounded-xl p-2.5 text-xs text-[#241B20]"
               />
+
             </div>
 
+            {/* Original Price */}
             <div>
+
               <label className="font-bold text-[#9E315A] uppercase block mb-1">
-                Original Price (£)
+                Original Price
               </label>
 
               <input
                 type="number"
                 min="0"
+                step="0.01"
                 placeholder="e.g. 185"
-                value={product.originalPrice || ''}
+                value={
+                  product.originalPrice ||
+                  ''
+                }
                 onChange={(event) =>
                   updateProduct({
                     originalPrice:
-                      Number(event.target.value) ||
+                      Number(
+                        event.target.value
+                      ) ||
                       undefined,
                   })
                 }
                 className="w-full bg-[#FFF8FA] border border-rose-200 rounded-xl p-2.5 text-xs text-[#241B20]"
               />
+
             </div>
 
+            {/* ==================================================
+                STOCK QUANTITY
+            ================================================== */}
             <div>
-              <label className="font-bold text-[#9E315A] uppercase block mb-1">
-                Stock Status
+
+              <label className="font-bold text-[#9E315A] uppercase block mb-1 flex items-center gap-1.5">
+
+                <Package className="w-3.5 h-3.5" />
+
+                Stock Quantity
+
               </label>
 
-              <select
+              <input
+                type="number"
+                min="0"
+                step="1"
+                placeholder="e.g. 10"
                 value={
-                  product.stockStatus || 'In Stock'
+                  product.stockQuantity ??
+                  ''
                 }
                 onChange={(event) =>
-                  updateProduct({
-                    stockStatus:
-                      event.target.value as StockStatus,
-                  })
+                  handleStockQuantityChange(
+                    event.target.value
+                  )
                 }
-                className="w-full bg-[#FFF8FA] border border-rose-200 rounded-xl p-2.5 text-xs text-[#241B20]"
-              >
-                <option value="In Stock">
-                  In Stock
-                </option>
+                className="w-full bg-[#FFF8FA] border border-rose-200 rounded-xl p-2.5 text-xs text-[#241B20] outline-none focus:border-[#9E315A]"
+              />
 
-                <option value="Low Stock">
-                  Low Stock
-                </option>
+              <p className="text-[9px] text-[#8C5D6C] mt-1">
+                Number of pieces currently available.
+              </p>
 
-                <option value="Out of Stock">
-                  Out of Stock
-                </option>
-
-                <option value="Unavailable">
-                  Unavailable
-                </option>
-
-                <option value="Pre-Order">
-                  Pre-Order
-                </option>
-
-                <option value="Coming Soon">
-                  Coming Soon
-                </option>
-              </select>
             </div>
 
           </div>
 
-          {/* Stock Reason */}
-          {(product.stockStatus === 'Out of Stock' ||
-            product.stockStatus === 'Unavailable' ||
-            product.stockStatus === 'Low Stock') && (
+          {/* ====================================================
+              STOCK SUMMARY
+          ==================================================== */}
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+
+            {/* Quantity */}
+            <div className="p-3 rounded-xl bg-[#FFF8FA] border border-rose-100">
+
+              <span className="text-[9px] uppercase tracking-wider text-[#8C5D6C] block">
+                Current Quantity
+              </span>
+
+              <span className="text-lg font-bold text-[#9E315A]">
+                {Number(
+                  product.stockQuantity || 0
+                )}
+              </span>
+
+            </div>
+
+            {/* Status */}
+            <div className="p-3 rounded-xl bg-[#FFF8FA] border border-rose-100">
+
+              <span className="text-[9px] uppercase tracking-wider text-[#8C5D6C] block">
+                Current Status
+              </span>
+
+              <span
+                className={`text-xs font-bold ${
+                  product.stockStatus ===
+                  'Out of Stock'
+                    ? 'text-red-600'
+                    : product.stockStatus ===
+                        'Low Stock'
+                      ? 'text-amber-600'
+                      : 'text-emerald-600'
+                }`}
+              >
+                {product.stockStatus ||
+                  'In Stock'}
+              </span>
+
+            </div>
+
+            {/* Storefront */}
+            <div className="p-3 rounded-xl bg-[#FFF8FA] border border-rose-100">
+
+              <span className="text-[9px] uppercase tracking-wider text-[#8C5D6C] block">
+                Storefront
+              </span>
+
+              <span
+                className={`text-xs font-bold ${
+                  product.stockStatus ===
+                    'Out of Stock' ||
+                  product.stockStatus ===
+                    'Unavailable'
+                    ? 'text-red-600'
+                    : 'text-emerald-600'
+                }`}
+              >
+                {product.stockStatus ===
+                    'Out of Stock' ||
+                product.stockStatus ===
+                    'Unavailable'
+                  ? 'Unavailable'
+                  : 'Available'}
+              </span>
+
+            </div>
+
+          </div>
+
+          {/* ====================================================
+              STOCK STATUS
+          ==================================================== */}
+          <div>
+
+            <label className="font-bold text-[#9E315A] uppercase block mb-1">
+              Stock Status
+            </label>
+
+            <select
+              value={
+                product.stockStatus ||
+                'In Stock'
+              }
+              onChange={(event) =>
+                handleStockStatusChange(
+                  event.target
+                    .value as StockStatus
+                )
+              }
+              className="w-full bg-[#FFF8FA] border border-rose-200 rounded-xl p-2.5 text-xs text-[#241B20]"
+            >
+
+              <option value="In Stock">
+                In Stock
+              </option>
+
+              <option value="Low Stock">
+                Low Stock
+              </option>
+
+              <option value="Out of Stock">
+                Out of Stock
+              </option>
+
+              <option value="Unavailable">
+                Unavailable
+              </option>
+
+              <option value="Pre-Order">
+                Pre-Order
+              </option>
+
+              <option value="Coming Soon">
+                Coming Soon
+              </option>
+
+            </select>
+
+            <p className="text-[9px] text-[#8C5D6C] mt-1">
+              Quantity automatically updates normal
+              inventory status. Special statuses can
+              be selected manually.
+            </p>
+
+          </div>
+
+          {/* ====================================================
+              STOCK REASON
+          ==================================================== */}
+          {(product.stockStatus ===
+            'Out of Stock' ||
+            product.stockStatus ===
+              'Unavailable' ||
+            product.stockStatus ===
+              'Low Stock') && (
+
             <div className="p-3.5 rounded-2xl bg-amber-50/70 border border-amber-200 space-y-2">
 
               <div className="flex items-center gap-1.5 text-amber-900 font-bold">
+
                 <Info className="w-3.5 h-3.5" />
 
                 <span>
                   Stock Status Note / Reason for Customers:
                 </span>
+
               </div>
 
               <input
                 type="text"
                 placeholder="e.g. Sold Out - Awaiting New Weaving Batch from Kanchipuram"
                 value={
-                  product.unavailabilityReason || ''
+                  product.unavailabilityReason ||
+                  ''
                 }
                 onChange={(event) =>
                   updateProduct({
@@ -439,6 +740,7 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
 
                 {STOCK_UNAVAILABILITY_PRESETS.map(
                   (preset) => (
+
                     <button
                       key={preset}
                       type="button"
@@ -452,19 +754,25 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
                     >
                       {preset}
                     </button>
+
                   )
                 )}
 
               </div>
+
             </div>
+
           )}
 
-          {/* Photography */}
+          {/* ====================================================
+              PHOTOGRAPHY
+          ==================================================== */}
           <div className="p-5 rounded-2xl bg-[#FFF8FA] border border-rose-200/80 space-y-4">
 
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1 pb-2 border-b border-rose-200/60">
 
               <div>
+
                 <label className="font-bold text-[#9E315A] uppercase text-xs sm:text-sm block">
                   Product Photography & Angles
                 </label>
@@ -473,6 +781,7 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
                   Upload photos directly from your device.
                   Images are automatically compressed to WebP.
                 </span>
+
               </div>
 
               <span className="text-[10px] font-bold text-rose-700 bg-rose-100 px-2.5 py-1 rounded-full shrink-0 self-start">
@@ -481,7 +790,9 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
 
             </div>
 
-            {/* Main image */}
+            {/* ==================================================
+                MAIN IMAGE
+            ================================================== */}
             <div className="bg-white p-4 rounded-2xl border-2 border-rose-200 shadow-sm space-y-3">
 
               <div className="flex items-center justify-between">
@@ -496,14 +807,18 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
                   </span>
 
                   {product.images?.main && (
+
                     <span className="text-[10px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-md flex items-center gap-1">
+
                       <Check className="w-3 h-3" />
 
                       <span>
                         {compressionStats.main ||
                           'Ready & Compressed'}
                       </span>
+
                     </span>
+
                   )}
 
                 </div>
@@ -534,7 +849,9 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
                   <div className="w-24 h-32 rounded-xl bg-white border border-rose-200 overflow-hidden shrink-0 shadow-sm relative">
 
                     <img
-                      src={product.images.main}
+                      src={
+                        product.images.main
+                      }
                       alt="Main Preview"
                       className="w-full h-full object-cover"
                       onError={(event) =>
@@ -566,19 +883,27 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
                         }
                         className="flex items-center gap-1.5 bg-[#9E315A] hover:bg-[#832247] text-white px-3 py-1.5 rounded-xl text-xs font-bold shadow-sm cursor-pointer"
                       >
+
                         <Upload className="w-3.5 h-3.5" />
+
                         Replace Main Photo
+
                       </button>
 
                       <button
                         type="button"
                         onClick={() =>
-                          handleRemoveImage('main')
+                          handleRemoveImage(
+                            'main'
+                          )
                         }
                         className="flex items-center gap-1 text-rose-600 hover:text-rose-800 hover:bg-rose-100 px-3 py-1.5 rounded-xl text-xs font-bold cursor-pointer"
                       >
+
                         <Trash2 className="w-3.5 h-3.5" />
+
                         Remove
+
                       </button>
 
                     </div>
@@ -595,26 +920,34 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
                     mainImageInputRef.current?.click()
                   }
                   disabled={
-                    compressingAngle === 'main'
+                    compressingAngle ===
+                    'main'
                   }
                   className="w-full border-2 border-dashed border-rose-300 hover:border-[#9E315A] bg-[#FFF5F8] hover:bg-rose-100/50 p-6 rounded-2xl flex flex-col items-center justify-center gap-2 cursor-pointer transition-all text-center"
                 >
 
-                  {compressingAngle === 'main' ? (
+                  {compressingAngle ===
+                  'main' ? (
 
                     <div className="flex items-center gap-2 text-xs font-bold text-[#9E315A]">
+
                       <RefreshCw className="w-5 h-5 animate-spin" />
+
                       Auto-compressing main photo...
+
                     </div>
 
                   ) : (
 
                     <>
                       <div className="w-10 h-10 rounded-full bg-rose-100 flex items-center justify-center text-[#9E315A]">
+
                         <Camera className="w-5 h-5" />
+
                       </div>
 
                       <div>
+
                         <span className="text-xs font-bold text-[#9E315A] block">
                           Click to Upload Main Product Photo
                         </span>
@@ -622,6 +955,7 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
                         <span className="text-[11px] text-[#8C5D6C] block mt-0.5">
                           JPG, PNG, WebP supported
                         </span>
+
                       </div>
                     </>
 
@@ -633,7 +967,9 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
 
             </div>
 
-            {/* Additional images */}
+            {/* ==================================================
+                ADDITIONAL IMAGES
+            ================================================== */}
             <div className="space-y-2 pt-1">
 
               <div className="flex items-center justify-between">
@@ -658,15 +994,19 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
                   }) => {
 
                     const imageValue =
-                      product.images?.[key];
+                      product.images?.[
+                        key
+                      ];
 
                     const isCompressing =
-                      compressingAngle === key;
+                      compressingAngle ===
+                      key;
 
                     const inputId =
                       `product-image-${key}`;
 
                     return (
+
                       <div
                         key={key}
                         className="bg-white p-3 rounded-xl border border-rose-200 flex flex-col justify-between space-y-2 shadow-sm"
@@ -681,9 +1021,11 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
                             </span>
 
                             {imageValue && (
+
                               <span className="text-[9px] font-bold text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded">
                                 ✓ Added
                               </span>
+
                             )}
 
                           </div>
@@ -714,7 +1056,9 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
                             <div className="relative aspect-[3/4] w-full rounded-lg overflow-hidden border border-rose-100 bg-[#FFF5F8]">
 
                               <img
-                                src={imageValue}
+                                src={
+                                  imageValue
+                                }
                                 alt={label}
                                 className="w-full h-full object-cover"
                                 onError={(event) =>
@@ -725,10 +1069,18 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
                                 }
                               />
 
-                              {compressionStats[key] && (
+                              {compressionStats[
+                                key
+                              ] && (
+
                                 <span className="absolute bottom-1 right-1 bg-black/70 text-white text-[7px] px-1 rounded">
-                                  {compressionStats[key]}
+                                  {
+                                    compressionStats[
+                                      key
+                                    ]
+                                  }
                                 </span>
+
                               )}
 
                             </div>
@@ -736,7 +1088,9 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
                             <div className="flex items-center gap-1.5">
 
                               <label
-                                htmlFor={inputId}
+                                htmlFor={
+                                  inputId
+                                }
                                 className="flex-1 text-center bg-rose-50 hover:bg-rose-100 text-[#9E315A] text-[10px] font-bold py-1.5 rounded-lg border border-rose-200 cursor-pointer"
                               >
                                 Replace
@@ -745,11 +1099,15 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
                               <button
                                 type="button"
                                 onClick={() =>
-                                  handleRemoveImage(key)
+                                  handleRemoveImage(
+                                    key
+                                  )
                                 }
                                 className="p-1.5 text-rose-500 hover:bg-rose-50 rounded-lg cursor-pointer"
                               >
+
                                 <Trash2 className="w-3.5 h-3.5" />
+
                               </button>
 
                             </div>
@@ -759,22 +1117,28 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
                         ) : (
 
                           <label
-                            htmlFor={inputId}
+                            htmlFor={
+                              inputId
+                            }
                             className="border border-dashed border-rose-200 hover:border-[#9E315A] bg-[#FFF8FA] hover:bg-rose-50/70 aspect-[3/4] rounded-xl flex flex-col items-center justify-center p-2 text-center cursor-pointer transition-colors"
                           >
 
                             {isCompressing ? (
 
                               <div className="flex flex-col items-center gap-1 text-[10px] font-semibold text-[#9E315A]">
+
                                 <RefreshCw className="w-4 h-4 animate-spin" />
+
                                 <span>
                                   Compressing...
                                 </span>
+
                               </div>
 
                             ) : (
 
                               <>
+
                                 <Upload className="w-5 h-5 text-rose-400 mb-1" />
 
                                 <span className="text-[10px] font-bold text-[#9E315A] block">
@@ -784,6 +1148,7 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
                                 <span className="text-[8px] text-[#8C5D6C] block mt-0.5">
                                   Browse photo
                                 </span>
+
                               </>
 
                             )}
@@ -793,6 +1158,7 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
                         )}
 
                       </div>
+
                     );
                   }
                 )}
@@ -802,7 +1168,9 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
             </div>
 
             {!product.images?.main && (
+
               <div className="p-3 bg-amber-50 border border-amber-200 rounded-xl flex items-center gap-2 text-xs text-amber-900">
+
                 <AlertCircle className="w-4 h-4 text-amber-600 shrink-0" />
 
                 <span>
@@ -810,15 +1178,20 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
                   Products cannot be published without a
                   primary photograph.
                 </span>
+
               </div>
+
             )}
 
           </div>
 
-          {/* Material / Color */}
+          {/* ====================================================
+              MATERIAL / COLOR
+          ==================================================== */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
 
             <div>
+
               <label className="font-bold text-[#9E315A] uppercase block mb-1">
                 Fabric / Material
               </label>
@@ -826,18 +1199,24 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
               <input
                 type="text"
                 placeholder="e.g. Pure Kanjivaram Silk with Zari Border"
-                value={product.material || ''}
+                value={
+                  product.material ||
+                  ''
+                }
                 onChange={(event) =>
                   updateProduct({
                     material:
-                      event.target.value,
+                      event.target
+                        .value,
                   })
                 }
                 className="w-full bg-[#FFF8FA] border border-rose-200 rounded-xl p-2.5 text-xs text-[#241B20]"
               />
+
             </div>
 
             <div>
+
               <label className="font-bold text-[#9E315A] uppercase block mb-1">
                 Primary Color
               </label>
@@ -845,19 +1224,26 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
               <input
                 type="text"
                 placeholder="e.g. Peacock Blue & Gold"
-                value={product.color || ''}
+                value={
+                  product.color || ''
+                }
                 onChange={(event) =>
                   updateProduct({
-                    color: event.target.value,
+                    color:
+                      event.target
+                        .value,
                   })
                 }
                 className="w-full bg-[#FFF8FA] border border-rose-200 rounded-xl p-2.5 text-xs text-[#241B20]"
               />
+
             </div>
 
           </div>
 
-          {/* Description */}
+          {/* ====================================================
+              DESCRIPTION
+          ==================================================== */}
           <div>
 
             <label className="font-bold text-[#9E315A] uppercase block mb-1">
@@ -866,11 +1252,15 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
 
             <textarea
               rows={3}
-              value={product.description || ''}
+              value={
+                product.description ||
+                ''
+              }
               onChange={(event) =>
                 updateProduct({
                   description:
-                    event.target.value,
+                    event.target
+                      .value,
                 })
               }
               className="w-full bg-[#FFF8FA] border border-rose-200 rounded-xl p-2.5 text-xs text-[#241B20] resize-none"
@@ -878,18 +1268,23 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
 
           </div>
 
-          {/* Flags */}
+          {/* ====================================================
+              FLAGS
+          ==================================================== */}
           <div className="flex flex-wrap items-center gap-4 pt-2">
 
             <label className="flex items-center gap-2 cursor-pointer">
 
               <input
                 type="checkbox"
-                checked={Boolean(product.isPreOrder)}
+                checked={Boolean(
+                  product.isPreOrder
+                )}
                 onChange={(event) =>
                   updateProduct({
                     isPreOrder:
-                      event.target.checked,
+                      event.target
+                        .checked,
                   })
                 }
                 className="rounded text-[#9E315A]"
@@ -911,7 +1306,8 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
                 onChange={(event) =>
                   updateProduct({
                     isDancePerformance:
-                      event.target.checked,
+                      event.target
+                        .checked,
                   })
                 }
                 className="rounded text-[#9E315A]"
@@ -927,11 +1323,14 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
 
               <input
                 type="checkbox"
-                checked={Boolean(product.isOffer)}
+                checked={Boolean(
+                  product.isOffer
+                )}
                 onChange={(event) =>
                   updateProduct({
                     isOffer:
-                      event.target.checked,
+                      event.target
+                        .checked,
                   })
                 }
                 className="rounded text-[#9E315A]"
@@ -945,7 +1344,9 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
 
           </div>
 
-          {/* Footer */}
+          {/* ====================================================
+              FOOTER
+          ==================================================== */}
           <div className="pt-4 border-t border-rose-100 flex justify-end gap-2">
 
             <button
@@ -958,7 +1359,9 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
 
             <button
               type="submit"
-              disabled={!product.images?.main}
+              disabled={
+                !product.images?.main
+              }
               className="px-6 py-2 bg-[#9E315A] hover:bg-[#832247] disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-xl font-bold text-xs shadow-md cursor-pointer"
             >
               {isEditing

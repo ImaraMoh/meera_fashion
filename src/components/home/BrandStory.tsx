@@ -69,11 +69,18 @@ export const BrandStory: React.FC<BrandStoryProps> = ({
               <div className="relative bg-gradient-to-br from-[#FF94BA] via-[#D15585] to-[#9E315A] rounded-2xl p-7 text-white shadow-luxury-lg border border-white/40 overflow-hidden">
                 
                 {/* Subtle Card Watermark Silhouette */}
-                <div className="absolute right-3 top-4 opacity-25 pointer-events-none w-20 h-20 flex items-center justify-center">
+                <div className="absolute right-3 top-4 w-20 h-20 flex items-center justify-center pointer-events-none">
+                  {/* White glow */}
+                  <div className="absolute inset-1 rounded-full bg-white/80 blur-md shadow-[0_0_25px_rgba(255,255,255,0.9)]" />
+
+                  {/* White glowing background */}
+                  <div className="absolute inset-2 rounded-full bg-white/70 border border-white/80 shadow-[0_0_18px_rgba(255,255,255,0.8)]" />
+
+                  {/* Logo */}
                   <img
                     src={settings.customLogoUrl || LogoImage}
                     alt="Watermark Logo"
-                    className="w-full h-full object-contain filter brightness-200"
+                    className="relative z-10 w-14 h-14 object-contain opacity-80 drop-shadow-[0_0_8px_rgba(255,255,255,0.95)]"
                   />
                 </div>
 
@@ -86,9 +93,6 @@ export const BrandStory: React.FC<BrandStoryProps> = ({
                     <p className="text-xs text-rose-100 font-medium tracking-wider uppercase mt-0.5">
                       {settings.tagline || 'Traditional Clothing And Jewelleries'}
                     </p>
-                  </div>
-                  <div className="w-9 h-9 rounded-full bg-white/20 backdrop-blur-md flex items-center justify-center border border-white/30">
-                    <Sparkles className="w-5 h-5 text-[#FFF]" />
                   </div>
                 </div>
 

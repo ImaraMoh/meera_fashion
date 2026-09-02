@@ -519,14 +519,24 @@ export default function App() {
   ) => {
     const sanitizedEnquiries = updated.map((item) => ({
       ...item,
+
       cancelledAt:
-        typeof item.cancelledAt === 'string' && item.cancelledAt.trim() !== ''
+        typeof item.cancelledAt === 'string' &&
+        item.cancelledAt.trim() !== ''
           ? item.cancelledAt
           : undefined,
+
       createdAt:
-        typeof item.createdAt === 'string' && item.createdAt.trim() !== ''
+        typeof item.createdAt === 'string' &&
+        item.createdAt.trim() !== ''
           ? item.createdAt
           : undefined,
+
+      statusUpdatedAt:
+        typeof item.statusUpdatedAt === 'string' &&
+        item.statusUpdatedAt.trim() !== ''
+          ? item.statusUpdatedAt
+          : new Date().toISOString(),
     })) as EnquiryOrder[];
 
     setEnquiries(sanitizedEnquiries);
@@ -535,9 +545,11 @@ export default function App() {
       await saveRemoteEnquiries(sanitizedEnquiries);
     } catch (error) {
       console.error(
-        'Failed to save enquiries to backend:',
+        '❌ Failed to save enquiries to backend:',
         error
       );
+
+      throw error;
     }
   };
 
@@ -1147,18 +1159,17 @@ export default function App() {
                 handleOpenGeneralWhatsApp
               }
               settings={settings}
+              products={products}
             />
 
             <CategoryBoutique
-              onSelectCategory={(
-                cat: ProductCategory
-              ) => {
+              products={products}
+              onSelectCategory={(cat: ProductCategory) => {
                 setCurrentCategory(cat);
 
-                const gridElem =
-                  document.getElementById(
-                    'boutique-catalog'
-                  );
+                const gridElem = document.getElementById(
+                  'boutique-catalog'
+                );
 
                 if (gridElem) {
                   gridElem.scrollIntoView({
@@ -1231,6 +1242,7 @@ export default function App() {
 
             <SocialShowcase
               settings={settings}
+              products={products}
             />
 
             <ContactSection
@@ -1248,6 +1260,7 @@ export default function App() {
 
             <SocialShowcase
               settings={settings}
+              products={products}
             />
           </div>
         ) : (

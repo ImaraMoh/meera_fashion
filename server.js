@@ -324,26 +324,10 @@ const createPool = () => {
    CORS
 ========================================================= */
 
-const isLocalDevelopmentOrigin = (
-  origin
-) => {
+const isLocalDevelopmentOrigin = (origin) => {
   if (!origin) {
     return true;
   }
-
-  /*
-   * Allow:
-   *
-   * localhost
-   * 127.0.0.1
-   * 0.0.0.0
-   * 10.x.x.x
-   * 172.16.x.x - 172.31.x.x
-   * 192.168.x.x
-   *
-   * Example:
-   * http://172.20.10.2:3000
-   */
 
   return /^https?:\/\/(localhost|127\.0\.0\.1|0\.0\.0\.0|10\.\d+\.\d+\.\d+|192\.168\.\d+\.\d+|172\.(1[6-9]|2\d|3[01])\.\d+\.\d+)(:\d+)?$/i.test(
     origin
@@ -386,7 +370,7 @@ export function createApp() {
    * IMPORTANT:
    * If frontend is running at:
    *
-   * http://172.20.10.2:3000
+   * http://:3000
    *
    * it will now be accepted.
    */
@@ -1498,9 +1482,18 @@ export function createApp() {
             LIMIT 1
           `);
 
+        const currencySymbol =
+          settings.currencySymbol &&
+          settings.currencySymbol.trim() !== '?' &&
+          settings.currencySymbol.trim() !== ''
+            ? settings.currencySymbol.trim()
+            : '£';
+
+        const currencyCode =
+          settings.currencyCode?.trim() || 'GBP';
+
         const values = [
-          settings.brandName ||
-            "Meera's Fashion",
+          settings.brandName || "Meera's Fashion",
 
           settings.tagline ||
             'Traditional Clothing And Jewelleries',
@@ -1541,25 +1534,17 @@ export function createApp() {
           settings.announcementText ||
             '🌸 Welcome to Meera Fashion Boutique — Free UK Royal Mail Delivery on Orders over £100 | WhatsApp Concierge Available',
 
-          settings.showAnnouncement !==
-          undefined
-            ? Boolean(
-                settings.showAnnouncement
-              )
+          settings.showAnnouncement !== undefined
+            ? Boolean(settings.showAnnouncement)
             : true,
 
-          settings.enableRentalMode !==
-          undefined
-            ? Boolean(
-                settings.enableRentalMode
-              )
+          settings.enableRentalMode !== undefined
+            ? Boolean(settings.enableRentalMode)
             : false,
 
-          settings.currencySymbol ||
-            '£',
+          currencySymbol,
 
-          settings.currencyCode ||
-            'GBP',
+          currencyCode,
         ];
 
         /* -------------------------------------------------
@@ -1827,236 +1812,215 @@ export function createApp() {
   );
 
 
-  app.post(
-    '/api/enquiries',
-    async (req, res) => {
-      try {
-        const items =
-          Array.isArray(req.body)
-            ? req.body
-            : req.body
-              ? [req.body]
-              : [];
+  app.post('/api/enquiries', async (req, res) => {
+    try {
+      const enquiries = Array.isArray(req.body)
+        ? req.body
+        : req.body.enquiries || [];
 
-        for (const enquiry of items) {
-          const id =
-            enquiry.id ||
-            `enq-${Date.now()}-${Math.random()
-              .toString(36)
-              .slice(2, 8)}`;
+      for (const enquiry of enquiries) {
+        const {
+          id,
+          orderNumber,
+          customerName,
+          customerPhone,
+          customerEmail,
+          items,
+          subtotal,
+          discount,
+          notes,
+          status,
+          total,
+          source,
+          createdAt,
+          statusUpdatedAt,
+          status_updated_at,
+          cancelReason,
+          cancel_reason,
+          cancelledAt,
+          cancelled_at,
+        } = enquiry;
 
-          const orderNumber =
-            enquiry.orderNumber ||
-            id;
+        // Support both camelCase and snake_case
+        const finalStatusUpdatedAt =
+          statusUpdatedAt ||
+          status_updated_at ||
+          new Date();
 
-          const customerName =
-            enquiry.customerName ||
-            '';
+        const finalCancelReason =
+          cancelReason ||
+          cancel_reason ||
+          null;
 
-          const customerPhone =
-            enquiry.customerPhone ||
-            '';
+        const finalCancelledAt =
+          cancelledAt ||
+          cancelled_at ||
+          null;
 
-          const customerEmail =
-            enquiry.customerEmail ||
-            '';
-
-          const notes =
-            enquiry.notes ||
-            '';
-
-          const status =
-            enquiry.status ||
-            'New';
-
-          const total =
-            toNumber(
-              enquiry.total,
-              0
-            );
-
-          const source =
-            enquiry.source ||
-            'Web';
-
-          const subtotal =
-            toNumber(
-              enquiry.subtotal,
-              total
-            );
-
-          const discount =
-            toNumber(
-              enquiry.discount,
-              0
-            );
-
-          const createdAt =
-            enquiry.createdAt ||
-            new Date().toISOString();
-          
-          const statusUpdatedAt =
-            enquiry.statusUpdatedAt ||
-            new Date().toISOString();
-
-          await pool.query(
-            `
-              INSERT INTO enquiries (
-                id,
-                order_number,
-                customer_name,
-                customer_phone,
-                customer_email,
-                items,
-                subtotal,
-                discount,
-                notes,
-                status,
-                total,
-                source,
-                created_at
-                status_updated_at
-              )
-              VALUES (
-                $1,$2,$3,$4,$5,$6,$7,
-                $8,$9,$10,$11,$12,$13,$14
-              )
-
-              ON CONFLICT (id)
-              DO UPDATE SET
-                order_number =
-                  EXCLUDED.order_number,
-
-                customer_name =
-                  EXCLUDED.customer_name,
-
-                customer_phone =
-                  EXCLUDED.customer_phone,
-
-                customer_email =
-                  EXCLUDED.customer_email,
-
-                items =
-                  EXCLUDED.items,
-
-                subtotal =
-                  EXCLUDED.subtotal,
-
-                discount =
-                  EXCLUDED.discount,
-
-                notes =
-                  EXCLUDED.notes,
-
-                status =
-                  EXCLUDED.status,
-
-                total =
-                  EXCLUDED.total,
-
-                source =
-                  EXCLUDED.source
-            `,
-            [
+        await pool.query(
+          `
+            INSERT INTO enquiries (
               id,
-              orderNumber,
-              customerName,
-              customerPhone,
-              customerEmail,
-              JSON.stringify(
-                enquiry.items || []
-              ),
+              order_number,
+              customer_name,
+              customer_phone,
+              customer_email,
+              items,
               subtotal,
               discount,
               notes,
               status,
               total,
               source,
-              createdAt,
-              status_updated_at
-            ]
-          );
-        }
+              created_at,
+              status_updated_at,
+              cancel_reason,
+              cancelled_at
+            )
+            VALUES (
+              $1, $2, $3, $4, $5, $6, $7,
+              $8, $9, $10, $11, $12, $13,
+              $14, $15, $16
+            )
 
-        return res.json({
-          ok: true,
-          count: items.length,
-        });
-      } catch (error) {
-        console.error(
-          'Failed to save enquiries:',
-          error
-        );
-
-        return res.status(500).json({
-          ok: false,
-
-          message:
-            'Failed to save enquiries.',
-
-          details:
-            error instanceof Error
-              ? error.message
-              : String(error),
-        });
-      }
-    }
-  );
-
-  app.delete(
-    '/api/enquiries/:id',
-    async (req, res) => {
-      try {
-        const { id } = req.params;
-
-        if (!id) {
-          return res.status(400).json({
-            ok: false,
-            message: 'Enquiry ID is required.',
-          });
-        }
-
-        const result = await pool.query(
-          `
-            DELETE FROM enquiries
-            WHERE id = $1
-            RETURNING id
+            ON CONFLICT (id)
+            DO UPDATE SET
+              order_number = EXCLUDED.order_number,
+              customer_name = EXCLUDED.customer_name,
+              customer_phone = EXCLUDED.customer_phone,
+              customer_email = EXCLUDED.customer_email,
+              items = EXCLUDED.items,
+              subtotal = EXCLUDED.subtotal,
+              discount = EXCLUDED.discount,
+              notes = EXCLUDED.notes,
+              status = EXCLUDED.status,
+              total = EXCLUDED.total,
+              source = EXCLUDED.source,
+              status_updated_at = EXCLUDED.status_updated_at,
+              cancel_reason = EXCLUDED.cancel_reason,
+              cancelled_at = EXCLUDED.cancelled_at
           `,
-          [id]
+          [
+            id,
+            orderNumber,
+            customerName,
+            customerPhone,
+            customerEmail,
+            JSON.stringify(items || []),
+            subtotal,
+            discount,
+            notes,
+            status,
+            total,
+            source,
+            createdAt || new Date(),
+            finalStatusUpdatedAt,
+            finalCancelReason,
+            finalCancelledAt,
+          ]
         );
+      }
 
-        if (result.rowCount === 0) {
-          return res.status(404).json({
-            ok: false,
-            message: 'Enquiry or invoice not found.',
-          });
-        }
+      return res.json({
+        ok: true,
+        message: 'Enquiries saved successfully.',
+      });
+    } catch (error) {
+      console.error('❌ Failed to save enquiries:', error);
 
-        return res.json({
-          ok: true,
-          message: 'Enquiry deleted successfully.',
-          deletedId: id,
-        });
-      } catch (error) {
-        console.error(
-          'Failed to delete enquiry:',
-          error
-        );
+      return res.status(500).json({
+        ok: false,
+        message: 'Failed to save enquiries.',
+        details: error.message,
+      });
+    }
+  });
 
-        return res.status(500).json({
+  app.delete('/api/enquiries/:id', async (req, res) => {
+    try {
+      const { id } = req.params;
+
+      console.log('🗑️ Delete enquiry request:', id);
+
+      if (!id) {
+        return res.status(400).json({
           ok: false,
-
-          message:
-            'Failed to delete enquiry.',
-
-          details:
-            error instanceof Error
-              ? error.message
-              : String(error),
+          message: 'Enquiry ID is required.',
         });
       }
+
+      // First check whether the enquiry exists
+      const existingResult = await pool.query(
+        `
+          SELECT
+            id,
+            order_number,
+            customer_name,
+            status
+          FROM enquiries
+          WHERE id = $1
+          LIMIT 1
+        `,
+        [id]
+      );
+
+      console.log(
+        '🔎 Enquiry found before delete:',
+        existingResult.rows
+      );
+
+      if (existingResult.rows.length === 0) {
+        return res.status(404).json({
+          ok: false,
+          message: 'Enquiry not found.',
+          requestedId: id,
+        });
+      }
+
+      // Delete the enquiry
+      const deleteResult = await pool.query(
+        `
+          DELETE FROM enquiries
+          WHERE id = $1
+          RETURNING id
+        `,
+        [id]
+      );
+
+      console.log(
+        '✅ Deleted enquiry:',
+        deleteResult.rows
+      );
+
+      if (deleteResult.rows.length === 0) {
+        return res.status(404).json({
+          ok: false,
+          message: 'Enquiry could not be deleted.',
+          requestedId: id,
+        });
+      }
+
+      return res.status(200).json({
+        ok: true,
+        message: 'Enquiry deleted successfully.',
+        deletedId: deleteResult.rows[0].id,
+      });
+    } catch (error) {
+      console.error(
+        '❌ Failed to delete enquiry:',
+        error
+      );
+
+      return res.status(500).json({
+        ok: false,
+        message: 'Failed to delete enquiry.',
+        details:
+          error instanceof Error
+            ? error.message
+            : String(error),
+      });
     }
-  );
+  });
 
   app.get('/api/enquiries/:id', async (req, res) => {
     try {

@@ -1,5 +1,12 @@
-import React from 'react';
-import { Phone, Mail, Instagram, Music2, MessageCircle } from 'lucide-react';
+import React, { useMemo } from 'react';
+import {
+  Phone,
+  Mail,
+  Instagram,
+  Music2,
+  MessageCircle,
+} from 'lucide-react';
+
 import LogoImage from '../../assets/logo.png';
 import { BrandSettings } from '../../types';
 
@@ -9,40 +16,109 @@ interface FooterProps {
   settings: BrandSettings;
 }
 
+/**
+ * Resolve the correct currency symbol from the currency code.
+ *
+ * currencyCode is treated as the source of truth.
+ * This prevents invalid values such as "?" from being displayed.
+ */
+const getCurrencySymbol = (
+  currencyCode?: string,
+  fallbackSymbol?: string
+): string => {
+  const code = currencyCode?.trim().toUpperCase() || 'GBP';
+
+  try {
+    const parts = new Intl.NumberFormat('en-GB', {
+      style: 'currency',
+      currency: code,
+      currencyDisplay: 'narrowSymbol',
+    }).formatToParts(0);
+
+    const currencyPart = parts.find(
+      (part) => part.type === 'currency'
+    );
+
+    if (
+      currencyPart?.value &&
+      currencyPart.value !== '?' &&
+      currencyPart.value !== '�'
+    ) {
+      return currencyPart.value;
+    }
+  } catch {
+    // Invalid currency code - use fallback below.
+  }
+
+  /**
+   * Only use the configured currency symbol if it is valid.
+   */
+  const cleanedFallback = fallbackSymbol?.trim();
+
+  if (
+    cleanedFallback &&
+    cleanedFallback !== '?' &&
+    cleanedFallback !== '�'
+  ) {
+    return cleanedFallback;
+  }
+
+  return '£';
+};
+
 export const Footer: React.FC<FooterProps> = ({
   onNavigate,
   onOpenWhatsApp,
   settings,
 }) => {
+  /**
+   * Resolve currency once from settings.
+   */
+  const currencyCode = useMemo(() => {
+    return settings.currencyCode?.trim().toUpperCase() || 'GBP';
+  }, [settings.currencyCode]);
+
+  const currencySymbol = useMemo(() => {
+    return getCurrencySymbol(
+      currencyCode,
+      settings.currencySymbol
+    );
+  }, [currencyCode, settings.currencySymbol]);
+
   return (
     <footer className="bg-[#1C1418] text-[#F8DDE7] pt-16 pb-12 border-t border-[#3E2F37]">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        
+
         {/* Main Footer Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-12 gap-10 pb-12 border-b border-white/10">
-          
+
           {/* Column 1: Brand & Bio */}
           <div className="lg:col-span-4 space-y-4">
             <div className="flex items-center gap-3">
               <div className="w-12 h-12 flex items-center justify-center overflow-hidden shrink-0">
                 <img
                   src={settings.customLogoUrl || LogoImage}
-                  alt={settings.brandName || "Meera Fashion"}
+                  alt={settings.brandName || 'Meera Fashion'}
                   className="w-12 h-12 object-contain"
                 />
               </div>
+
               <div>
                 <h3 className="font-serif text-lg font-bold text-white tracking-wide">
                   {settings.brandName || 'Meera Fashion'}
                 </h3>
+
                 <p className="text-[10px] text-rose-200/70 tracking-widest uppercase">
                   {settings.tagline || 'Traditional Elegance'}
                 </p>
               </div>
             </div>
-            
+
             <p className="text-xs sm:text-sm text-rose-200/80 leading-relaxed font-light pr-4">
-              {settings.brandName || 'Meera Fashion'} is a premium South Asian luxury boutique in {settings.address || 'London'}. Specializing in pure Kanjivaram silk sarees, heirloom Kundan and temple jewellery sets, bridal lehengas, and dance performance ensembles.
+              {settings.brandName || 'Meera Fashion'} is a premium South Asian
+              luxury boutique in {settings.address || 'London'}. Specializing
+              in pure Kanjivaram silk sarees, heirloom Kundan and temple
+              jewellery sets, bridal lehengas, and dance performance ensembles.
             </p>
 
             {/* Social Media Links */}
@@ -82,6 +158,7 @@ export const Footer: React.FC<FooterProps> = ({
             <h4 className="font-serif font-bold text-white text-base tracking-wider uppercase">
               Explore Boutiques
             </h4>
+
             <ul className="space-y-2 text-xs text-rose-200/80">
               <li>
                 <button
@@ -91,6 +168,7 @@ export const Footer: React.FC<FooterProps> = ({
                   Kanjivaram &amp; Silk Sarees
                 </button>
               </li>
+
               <li>
                 <button
                   onClick={() => onNavigate('jewellery', 'jewellery')}
@@ -99,15 +177,20 @@ export const Footer: React.FC<FooterProps> = ({
                   Temple Jewellery &amp; Bangle Sets
                 </button>
               </li>
+
               <li>
                 <button
                   onClick={() => onNavigate('performance', 'performance')}
                   className="hover:text-white text-[#F8DDE7] font-semibold transition-colors flex items-center gap-1 cursor-pointer"
                 >
                   <span>The Dance Performance Edit</span>
-                  <span className="text-[9px] bg-[#9E315A] text-white px-1.5 py-0.2 rounded font-bold">Hot</span>
+
+                  <span className="text-[9px] bg-[#9E315A] text-white px-1.5 py-0.2 rounded font-bold">
+                    Hot
+                  </span>
                 </button>
               </li>
+
               <li>
                 <button
                   onClick={() => onNavigate('lehengas', 'lehengas')}
@@ -116,6 +199,7 @@ export const Footer: React.FC<FooterProps> = ({
                   Bridal &amp; Festive Lehengas
                 </button>
               </li>
+
               <li>
                 <button
                   onClick={() => onNavigate('shalwar', 'shalwar')}
@@ -124,6 +208,7 @@ export const Footer: React.FC<FooterProps> = ({
                   Designer Shalwar &amp; Anarkalis
                 </button>
               </li>
+
               <li>
                 <button
                   onClick={() => onNavigate('offers', 'offers')}
@@ -140,25 +225,43 @@ export const Footer: React.FC<FooterProps> = ({
             <h4 className="font-serif font-bold text-white text-base tracking-wider uppercase">
               Information
             </h4>
+
             <ul className="space-y-2 text-xs text-rose-200/80">
               <li>
-                <button onClick={() => onNavigate('story')} className="hover:text-white transition-colors cursor-pointer">
+                <button
+                  onClick={() => onNavigate('story')}
+                  className="hover:text-white transition-colors cursor-pointer"
+                >
                   About {settings.brandName || 'Meera Fashion'}
                 </button>
               </li>
+
               <li>
-                <button onClick={() => onNavigate('contact')} className="hover:text-white transition-colors cursor-pointer">
+                <button
+                  onClick={() => onNavigate('contact')}
+                  className="hover:text-white transition-colors cursor-pointer"
+                >
                   Concierge &amp; Enquiries
                 </button>
               </li>
+
+              {/* Currency-safe delivery message */}
               <li>
-                <span className="text-rose-300/60">Free UK Delivery over {settings.currencySymbol || '£'}100</span>
+                <span className="text-rose-300/60">
+                  Free UK Delivery over {currencySymbol}100
+                </span>
               </li>
+
               <li>
-                <span className="text-rose-300/60">Worldwide DHL / Royal Mail</span>
+                <span className="text-rose-300/60">
+                  Worldwide DHL / Royal Mail
+                </span>
               </li>
+
               <li>
-                <span className="text-rose-300/60">Custom Sizing Guide (2.2 - 3.0)</span>
+                <span className="text-rose-300/60">
+                  Custom Sizing Guide (2.2 - 3.0)
+                </span>
               </li>
             </ul>
           </div>
@@ -168,53 +271,76 @@ export const Footer: React.FC<FooterProps> = ({
             <h4 className="font-serif font-bold text-white text-base tracking-wider uppercase">
               Boutique Contact
             </h4>
+
             <div className="space-y-2.5 text-xs text-rose-200/90">
+
+              {/* Phone */}
               <a
                 href={`tel:${settings.phone}`}
                 className="flex items-center gap-2 hover:text-white transition-colors"
               >
                 <Phone className="w-4 h-4 text-[#E8CFAF] shrink-0" />
-                <span>{settings.phone} ({settings.formattedPhone})</span>
+
+                <span>
+                  {settings.phone} ({settings.formattedPhone})
+                </span>
               </a>
 
+              {/* Email */}
               <a
                 href={`mailto:${settings.email}`}
                 className="flex items-center gap-2 hover:text-white transition-colors"
               >
                 <Mail className="w-4 h-4 text-[#E8CFAF] shrink-0" />
-                <span className="break-all">{settings.email}</span>
+
+                <span className="break-all">
+                  {settings.email}
+                </span>
               </a>
 
+              {/* WhatsApp */}
               <div className="pt-2">
                 <button
                   onClick={onOpenWhatsApp}
                   className="w-full flex items-center justify-center gap-2 bg-[#25D366] hover:bg-[#20ba59] text-white py-2.5 px-4 rounded-xl text-xs font-bold shadow-sm transition-all cursor-pointer"
                 >
                   <MessageCircle className="w-4 h-4 fill-white" />
+
                   <span>Chat on WhatsApp</span>
                 </button>
               </div>
             </div>
           </div>
-
         </div>
 
         {/* Footer Bottom Strip */}
         <div className="pt-8 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-rose-200/50">
+
           <div className="flex flex-col sm:flex-row items-center gap-2 sm:gap-4 text-center sm:text-left">
-            <p>© {new Date().getFullYear()} {settings.brandName || 'Meera Fashion'} — {settings.address || 'London • Mumbai'}</p>
-            <span className="hidden sm:inline text-white/20">•</span>
+            <p>
+              © {new Date().getFullYear()}{' '}
+              {settings.brandName || 'Meera Fashion'} —{' '}
+              {settings.address || 'London • Mumbai'}
+            </p>
+
+            <span className="hidden sm:inline text-white/20">
+              •
+            </span>
+
             <p className="text-rose-200/70 font-medium">
-              Developed by <span className="text-[#F8DDE7] font-semibold tracking-wide hover:text-white transition-colors">NeirahTech</span>
+              Developed by{' '}
+              <span className="text-[#F8DDE7] font-semibold tracking-wide hover:text-white transition-colors">
+                NeirahTech
+              </span>
             </p>
           </div>
+
           <div className="flex items-center gap-5 text-[11px] uppercase tracking-widest text-white/40">
             <span>Secure Payments</span>
             <span>Premium Delivery</span>
             <span>Ethics First</span>
           </div>
         </div>
-
       </div>
     </footer>
   );

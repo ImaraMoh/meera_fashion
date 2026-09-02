@@ -7,17 +7,22 @@ import {
   MessageCircle,
   Sparkles,
   ShoppingBag,
-  ArrowRight,
   ShieldCheck,
-  Check
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
-import { SelectionItem, BrandSettings, EnquiryOrder } from '../../types';
+import {
+  SelectionItem,
+  BrandSettings,
+  EnquiryOrder,
+} from '../../types';
 import {
   generateWhatsAppSelectionMessage,
-  openWhatsAppChat
+  openWhatsAppChat,
 } from '../../services/whatsapp';
-import { handleImageError, getOptimizedImageUrl } from '../../utils/imageFallback';
+import {
+  handleImageError,
+  getOptimizedImageUrl,
+} from '../../utils/imageFallback';
 
 interface SelectionDrawerProps {
   isOpen: boolean;
@@ -31,7 +36,88 @@ interface SelectionDrawerProps {
   onContinueShopping: () => void;
 }
 
-export const SelectionDrawer: React.FC<SelectionDrawerProps> = ({
+/**
+ * Get currency symbol from currency code.
+ *
+ * The currencyCode is used as the source of truth so that
+ * the drawer doesn't depend on a potentially corrupted
+ * currencySymbol value from the database.
+ *
+ * Examples:
+ * GBP -> £
+ * USD -> $
+ * EUR -> €
+ * INR -> ₹
+ */
+const getCurrencySymbol = (
+  currencyCode?: string,
+  fallbackSymbol?: string
+): string => {
+  const code = currencyCode?.trim() || 'GBP';
+
+  try {
+    const parts = new Intl.NumberFormat('en-GB', {
+      style: 'currency',
+      currency: code,
+      currencyDisplay: 'narrowSymbol',
+    }).formatToParts(0);
+
+    const symbol = parts.find(
+      (part) => part.type === 'currency'
+    )?.value;
+
+    if (symbol) {
+      return symbol;
+    }
+  } catch {
+    // Fall through to fallback
+  }
+
+  // Use the configured symbol only if it isn't corrupted.
+  const fallback = fallbackSymbol?.trim();
+
+  if (
+    fallback &&
+    fallback !== '?' &&
+    fallback !== '�'
+  ) {
+    return fallback;
+  }
+
+  return '£';
+};
+
+/**
+ * Format an amount using the configured currency.
+ */
+const formatCurrency = (
+  amount: number,
+  currencyCode?: string,
+  fallbackSymbol?: string
+): string => {
+  const code = currencyCode?.trim() || 'GBP';
+
+  try {
+    return new Intl.NumberFormat('en-GB', {
+      style: 'currency',
+      currency: code,
+      currencyDisplay: 'symbol',
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    }).format(amount);
+  } catch {
+    const symbol = getCurrencySymbol(
+      code,
+      fallbackSymbol
+    );
+
+    return `${symbol}${amount.toFixed(2)}`;
+  }
+};
+
+export const SelectionDrawer: React.FC<
+  SelectionDrawerProps
+> = ({
   isOpen,
   onClose,
   items,
@@ -49,19 +135,38 @@ export const SelectionDrawer: React.FC<SelectionDrawerProps> = ({
 
   if (!isOpen) return null;
 
-  const totalAmount = items.reduce((sum, item) => sum + item.unitPrice * item.quantity, 0);
+  /*
+   * Currency
+   *
+   * currencyCode is the main source of truth.
+   * currencySymbol is only used as a fallback.
+   */
+  const currencyCode =
+    settings.currencyCode?.trim() || 'GBP';
+
+  const currencySymbol = getCurrencySymbol(
+    currencyCode,
+    settings.currencySymbol
+  );
+
+  const totalAmount = items.reduce(
+    (sum, item) =>
+      sum + item.unitPrice * item.quantity,
+    0
+  );
 
   // Live generated WhatsApp text
-  const liveMessage = generateWhatsAppSelectionMessage(
-    items,
-    {
-      name: customerName,
-      phone: customerPhone,
-      notes: customerNotes,
-    },
-    settings.brandName,
-    settings.currencySymbol || '£'
-  );
+  const liveMessage =
+    generateWhatsAppSelectionMessage(
+      items,
+      {
+        name: customerName,
+        phone: customerPhone,
+        notes: customerNotes,
+      },
+      settings.brandName,
+      currencySymbol
+    );
 
   const handleSendToWhatsApp = () => {
     if (items.length === 0) return;
@@ -72,19 +177,34 @@ export const SelectionDrawer: React.FC<SelectionDrawerProps> = ({
         particleCount: 80,
         spread: 60,
         origin: { y: 0.6 },
-        colors: ['#C94F7C', '#9E315A', '#E8CFAF', '#F8DDE7'],
+        colors: [
+          '#C94F7C',
+          '#9E315A',
+          '#E8CFAF',
+          '#F8DDE7',
+        ],
       });
     } catch (e) {
-      // ignore
+      // Ignore confetti errors
     }
 
     // Record this enquiry in CMS local storage
     const newEnquiry: EnquiryOrder = {
       id: `enq-${Date.now()}`,
-      orderNumber: `MF-ENQ-${new Date().getFullYear()}-${Math.floor(100 + Math.random() * 900)}`,
-      customerName: customerName || 'WhatsApp Customer',
-      customerPhone: customerPhone || 'Via WhatsApp',
-      customerEmail: 'Pending confirmation',
+
+      orderNumber: `MF-ENQ-${new Date().getFullYear()}-${Math.floor(
+        100 + Math.random() * 900
+      )}`,
+
+      customerName:
+        customerName || 'WhatsApp Customer',
+
+      customerPhone:
+        customerPhone || 'Via WhatsApp',
+
+      customerEmail:
+        'Pending confirmation',
+
       items: items.map((it) => ({
         productId: it.productId,
         productName: it.product.name,
@@ -93,37 +213,52 @@ export const SelectionDrawer: React.FC<SelectionDrawerProps> = ({
         size: it.selectedSize,
         image: it.product.images.main,
       })),
+
       subtotal: totalAmount,
       discount: 0,
       total: totalAmount,
+
       status: 'New',
-      notes: customerNotes || 'Sent via boutique selection drawer',
+
+      notes:
+        customerNotes ||
+        'Sent via boutique selection drawer',
+
       createdAt: new Date().toISOString(),
+
       source: 'WhatsApp',
     };
 
     onRecordEnquiry(newEnquiry);
 
     // Open WhatsApp
-    openWhatsAppChat(settings.whatsappNumber, liveMessage);
+    openWhatsAppChat(
+      settings.whatsappNumber,
+      liveMessage
+    );
   };
 
   return (
     <div className="fixed inset-0 z-50 overflow-hidden bg-black/60 backdrop-blur-xs flex justify-end animate-fadeIn">
       <div className="relative w-full max-w-lg bg-white h-full shadow-2xl flex flex-col justify-between border-l border-rose-100">
-        
+
         {/* Drawer Header */}
         <div className="px-6 py-4 bg-gradient-to-r from-[#FFF5F8] to-[#FFF0F5] border-b border-rose-200/80 flex items-center justify-between">
           <div className="flex items-center gap-2.5">
             <div className="w-8 h-8 rounded-full bg-[#9E315A] text-white flex items-center justify-center">
               <ShoppingBag className="w-4 h-4" />
             </div>
+
             <div>
               <h3 className="font-serif font-bold text-lg text-[#241B20]">
                 My Selection
               </h3>
+
               <p className="text-[11px] text-[#8C5D6C] font-medium">
-                {items.length} {items.length === 1 ? 'curated piece' : 'curated pieces'}
+                {items.length}{' '}
+                {items.length === 1
+                  ? 'curated piece'
+                  : 'curated pieces'}
               </p>
             </div>
           </div>
@@ -144,12 +279,17 @@ export const SelectionDrawer: React.FC<SelectionDrawerProps> = ({
               <div className="w-16 h-16 rounded-full bg-rose-50 border border-rose-100 flex items-center justify-center text-rose-300 mb-4">
                 <ShoppingBag className="w-8 h-8" />
               </div>
+
               <h4 className="font-serif font-bold text-lg text-[#241B20] mb-1">
                 Your Selection is Empty
               </h4>
+
               <p className="text-xs text-[#5A4550] max-w-xs mb-6">
-                Explore our silk sarees, temple jewellery bangles, and bridal collections to build your dream ensemble.
+                Explore our silk sarees, temple jewellery
+                bangles, and bridal collections to build
+                your dream ensemble.
               </p>
+
               <button
                 onClick={() => {
                   onClose();
@@ -172,7 +312,21 @@ export const SelectionDrawer: React.FC<SelectionDrawerProps> = ({
                     {/* Thumbnail */}
                     <div className="w-16 h-18 rounded-xl overflow-hidden shrink-0 border border-rose-200/80 bg-white">
                       <img
-                        src={getOptimizedImageUrl(item.product.images.main, { width: 140, quality: 60, fallbackType: item.product.category === 'jewellery' ? 'jewellery' : item.product.category === 'performance' ? 'performance' : 'saree' })}
+                        src={getOptimizedImageUrl(
+                          item.product.images.main,
+                          {
+                            width: 140,
+                            quality: 60,
+                            fallbackType:
+                              item.product.category ===
+                              'jewellery'
+                                ? 'jewellery'
+                                : item.product.category ===
+                                  'performance'
+                                ? 'performance'
+                                : 'saree',
+                          }
+                        )}
                         alt={item.product.name}
                         loading="lazy"
                         decoding="async"
@@ -180,9 +334,11 @@ export const SelectionDrawer: React.FC<SelectionDrawerProps> = ({
                         onError={(e) =>
                           handleImageError(
                             e,
-                            item.product.category === 'jewellery'
+                            item.product.category ===
+                              'jewellery'
                               ? 'jewellery'
-                              : item.product.category === 'performance'
+                              : item.product.category ===
+                                'performance'
                               ? 'performance'
                               : 'saree'
                           )
@@ -196,9 +352,15 @@ export const SelectionDrawer: React.FC<SelectionDrawerProps> = ({
                       <h4 className="font-serif font-bold text-sm text-[#241B20] truncate">
                         {item.product.name}
                       </h4>
+
                       <p className="text-xs font-semibold text-[#9E315A]">
-                        {settings.currencySymbol || '£'}{item.unitPrice}
+                        {formatCurrency(
+                          item.unitPrice,
+                          currencyCode,
+                          settings.currencySymbol
+                        )}
                       </p>
+
                       {item.selectedSize && (
                         <span className="inline-block text-[10px] bg-rose-100/80 text-[#9E315A] font-bold px-2 py-0.5 rounded mt-1">
                           Size: {item.selectedSize}
@@ -210,26 +372,43 @@ export const SelectionDrawer: React.FC<SelectionDrawerProps> = ({
                     <div className="flex flex-col items-end gap-2">
                       <div className="flex items-center border border-rose-200 bg-white rounded-lg overflow-hidden">
                         <button
-                          onClick={() => onUpdateQuantity(item.id, item.quantity - 1)}
+                          onClick={() =>
+                            onUpdateQuantity(
+                              item.id,
+                              item.quantity - 1
+                            )
+                          }
                           className="p-1 text-rose-800 hover:bg-rose-50"
+                          aria-label="Decrease quantity"
                         >
                           <Minus className="w-3 h-3" />
                         </button>
+
                         <span className="px-2 text-xs font-bold text-[#241B20]">
                           {item.quantity}
                         </span>
+
                         <button
-                          onClick={() => onUpdateQuantity(item.id, item.quantity + 1)}
+                          onClick={() =>
+                            onUpdateQuantity(
+                              item.id,
+                              item.quantity + 1
+                            )
+                          }
                           className="p-1 text-rose-800 hover:bg-rose-50"
+                          aria-label="Increase quantity"
                         >
                           <Plus className="w-3 h-3" />
                         </button>
                       </div>
 
                       <button
-                        onClick={() => onRemoveItem(item.id)}
+                        onClick={() =>
+                          onRemoveItem(item.id)
+                        }
                         className="text-rose-400 hover:text-rose-700 text-xs p-1"
                         title="Remove"
+                        aria-label={`Remove ${item.product.name}`}
                       >
                         <Trash2 className="w-3.5 h-3.5" />
                       </button>
@@ -238,13 +417,16 @@ export const SelectionDrawer: React.FC<SelectionDrawerProps> = ({
                 ))}
               </div>
 
-              {/* Customer Details Form (Optional for WhatsApp message personalization) */}
+              {/* Customer Details Form */}
               <div className="bg-[#FFF5F8] p-4 rounded-2xl border border-rose-200/80 space-y-3">
                 <div className="flex items-center justify-between">
                   <span className="text-xs font-bold text-[#9E315A] uppercase tracking-wider">
                     Concierge Details (Optional)
                   </span>
-                  <span className="text-[10px] text-[#8C5D6C]">Included in WhatsApp chat</span>
+
+                  <span className="text-[10px] text-[#8C5D6C]">
+                    Included in WhatsApp chat
+                  </span>
                 </div>
 
                 <div className="grid grid-cols-2 gap-2">
@@ -252,14 +434,19 @@ export const SelectionDrawer: React.FC<SelectionDrawerProps> = ({
                     type="text"
                     placeholder="Your Name (e.g. Priya)"
                     value={customerName}
-                    onChange={(e) => setCustomerName(e.target.value)}
+                    onChange={(e) =>
+                      setCustomerName(e.target.value)
+                    }
                     className="bg-white border border-rose-200 rounded-xl px-3 py-1.5 text-xs text-[#241B20] outline-none focus:border-[#9E315A]"
                   />
+
                   <input
                     type="text"
                     placeholder="Phone / City"
                     value={customerPhone}
-                    onChange={(e) => setCustomerPhone(e.target.value)}
+                    onChange={(e) =>
+                      setCustomerPhone(e.target.value)
+                    }
                     className="bg-white border border-rose-200 rounded-xl px-3 py-1.5 text-xs text-[#241B20] outline-none focus:border-[#9E315A]"
                   />
                 </div>
@@ -268,18 +455,27 @@ export const SelectionDrawer: React.FC<SelectionDrawerProps> = ({
                   rows={2}
                   placeholder="Special requests, wedding dates, or sizing queries..."
                   value={customerNotes}
-                  onChange={(e) => setCustomerNotes(e.target.value)}
+                  onChange={(e) =>
+                    setCustomerNotes(e.target.value)
+                  }
                   className="w-full bg-white border border-rose-200 rounded-xl p-2.5 text-xs text-[#241B20] outline-none focus:border-[#9E315A] resize-none"
                 />
 
                 {/* WhatsApp Message Preview Toggle */}
                 <button
                   type="button"
-                  onClick={() => setShowPreview(!showPreview)}
+                  onClick={() =>
+                    setShowPreview(!showPreview)
+                  }
                   className="text-[11px] font-semibold text-[#9E315A] hover:underline flex items-center gap-1"
                 >
                   <Sparkles className="w-3 h-3" />
-                  <span>{showPreview ? 'Hide Message Preview' : 'Preview WhatsApp Message'}</span>
+
+                  <span>
+                    {showPreview
+                      ? 'Hide Message Preview'
+                      : 'Preview WhatsApp Message'}
+                  </span>
                 </button>
 
                 {showPreview && (
@@ -292,39 +488,60 @@ export const SelectionDrawer: React.FC<SelectionDrawerProps> = ({
           )}
         </div>
 
-        {/* Drawer Footer & WhatsApp Action */}
+        {/* Drawer Footer */}
         {items.length > 0 && (
           <div className="p-6 bg-white border-t border-rose-100 shadow-lg space-y-3">
+
             {/* Totals */}
-            <div className="flex items-baseline justify-between">
+            <div className="flex items-baseline justify-between gap-4">
               <span className="text-sm font-semibold text-[#5A4550]">
                 Estimated Selection Total:
               </span>
-              <span className="font-serif font-bold text-2xl text-[#9E315A]">
-                {settings.currencySymbol || '£'}{totalAmount.toFixed(2)}
+
+              <span className="font-serif font-bold text-2xl text-[#9E315A] whitespace-nowrap">
+                {formatCurrency(
+                  totalAmount,
+                  currencyCode,
+                  settings.currencySymbol
+                )}
               </span>
             </div>
 
+            {/* Delivery Information */}
             <p className="text-[11px] text-[#8C5D6C] text-center">
-              Free UK Royal Mail Delivery applies on orders over {settings.currencySymbol || '£'}100
+              Free UK Royal Mail Delivery applies on orders over{' '}
+              {formatCurrency(
+                100,
+                currencyCode,
+                settings.currencySymbol
+              )}
             </p>
 
-            {/* Primary Action: Send to WhatsApp Concierge */}
+            {/* Primary Action */}
             <button
               onClick={handleSendToWhatsApp}
               className="w-full flex items-center justify-center gap-2.5 bg-[#25D366] hover:bg-[#20ba59] text-white py-3.5 px-6 rounded-2xl font-bold text-sm shadow-md hover:shadow-lg transition-all duration-200 cursor-pointer"
             >
               <MessageCircle className="w-5 h-5 fill-white" />
-              <span>Send Selection to WhatsApp Concierge</span>
+
+              <span>
+                Send Selection to WhatsApp Concierge
+              </span>
             </button>
 
+            {/* WhatsApp Information */}
             <div className="flex items-center justify-center gap-2 text-[10px] text-[#8C5D6C]">
               <ShieldCheck className="w-3.5 h-3.5 text-[#25D366]" />
-              <span>Opens official {settings.brandName} WhatsApp ({settings.formattedPhone || settings.phone})</span>
+
+              <span>
+                Opens official {settings.brandName} WhatsApp (
+                {settings.formattedPhone ||
+                  settings.phone}
+                )
+              </span>
             </div>
           </div>
         )}
-
       </div>
     </div>
   );

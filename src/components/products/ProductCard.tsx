@@ -1,7 +1,17 @@
-import React, { useState } from 'react';
-import { Heart, ShoppingBag, MessageCircle, Eye, Sparkles } from 'lucide-react';
+import React, { useMemo, useState } from 'react';
+import {
+  Heart,
+  ShoppingBag,
+  MessageCircle,
+  Eye,
+  Sparkles,
+} from 'lucide-react';
+
 import { Product } from '../../types';
-import { handleImageError, getOptimizedImageUrl } from '../../utils/imageFallback';
+import {
+  handleImageError,
+  getOptimizedImageUrl,
+} from '../../utils/imageFallback';
 
 interface ProductCardProps {
   product: Product;
@@ -10,8 +20,89 @@ interface ProductCardProps {
   onToggleWishlist: (productId: string) => void;
   isWishlisted: boolean;
   onOpenWhatsApp: (product: Product, selectedSize?: string) => void;
+
+  /**
+   * Kept for backward compatibility.
+   * If this value is "?", the component will ignore it
+   * and derive the correct symbol from currencyCode.
+   */
   currencySymbol?: string;
+
+  /**
+   * Currency code is the source of truth.
+   * Example: GBP, USD, EUR, LKR
+   */
+  currencyCode?: string;
 }
+
+/**
+ * Get a valid currency symbol from the currency code.
+ *
+ * The currencyCode is preferred because currencySymbol can sometimes
+ * contain "?" due to encoding/database issues.
+ */
+const getCurrencySymbol = (
+  currencyCode?: string,
+  fallbackSymbol?: string
+): string => {
+  const code = currencyCode?.trim().toUpperCase() || 'GBP';
+
+  try {
+    const parts = new Intl.NumberFormat('en-GB', {
+      style: 'currency',
+      currency: code,
+      currencyDisplay: 'narrowSymbol',
+    }).formatToParts(0);
+
+    const symbolPart = parts.find((part) => part.type === 'currency');
+
+    if (symbolPart?.value && symbolPart.value !== '?') {
+      return symbolPart.value;
+    }
+  } catch {
+    // Invalid currency code - continue to fallback.
+  }
+
+  /**
+   * Only use the supplied symbol when it is actually valid.
+   * Never allow "?" to become the displayed currency symbol.
+   */
+  const cleanedFallback = fallbackSymbol?.trim();
+
+  if (
+    cleanedFallback &&
+    cleanedFallback !== '?' &&
+    cleanedFallback !== '�'
+  ) {
+    return cleanedFallback;
+  }
+
+  return '£';
+};
+
+/**
+ * Format currency consistently.
+ */
+const formatCurrency = (
+  amount: number,
+  currencyCode?: string,
+  fallbackSymbol?: string
+): string => {
+  const code = currencyCode?.trim().toUpperCase() || 'GBP';
+
+  try {
+    return new Intl.NumberFormat('en-GB', {
+      style: 'currency',
+      currency: code,
+      currencyDisplay: 'symbol',
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    }).format(amount);
+  } catch {
+    const symbol = getCurrencySymbol(code, fallbackSymbol);
+    return `${symbol}${Number(amount || 0).toFixed(2)}`;
+  }
+};
 
 export const ProductCard: React.FC<ProductCardProps> = ({
   product,
@@ -20,13 +111,34 @@ export const ProductCard: React.FC<ProductCardProps> = ({
   onToggleWishlist,
   isWishlisted,
   onOpenWhatsApp,
-  currencySymbol = '£',
+  currencySymbol,
+  currencyCode,
 }) => {
   const [isHovered, setIsHovered] = useState(false);
   const [imageLoaded, setImageLoaded] = useState(false);
+
   const [selectedSize, setSelectedSize] = useState<string | undefined>(
-    product.bangleSizes ? product.bangleSizes[1] || product.bangleSizes[0] : undefined
+    product.bangleSizes
+      ? product.bangleSizes[1] || product.bangleSizes[0]
+      : undefined
   );
+
+  /**
+   * Resolve currency once instead of trusting a potentially broken
+   * currencySymbol prop.
+   */
+  const resolvedCurrencyCode = useMemo(() => {
+    const code = currencyCode?.trim().toUpperCase();
+
+    return code || 'GBP';
+  }, [currencyCode]);
+
+  const resolvedCurrencySymbol = useMemo(() => {
+    return getCurrencySymbol(
+      resolvedCurrencyCode,
+      currencySymbol
+    );
+  }, [resolvedCurrencyCode, currencySymbol]);
 
   const fallbackType =
     product.category === 'jewellery'
@@ -35,8 +147,16 @@ export const ProductCard: React.FC<ProductCardProps> = ({
       ? 'performance'
       : 'saree';
 
-  const secondaryImage = product.images.front || product.images.detail || product.images.main;
-  const rawImage = isHovered && secondaryImage ? secondaryImage : product.images.main;
+  const secondaryImage =
+    product.images.front ||
+    product.images.detail ||
+    product.images.main;
+
+  const rawImage =
+    isHovered && secondaryImage
+      ? secondaryImage
+      : product.images.main;
+
   const optimizedImageUrl = getOptimizedImageUrl(rawImage, {
     width: 480,
     quality: 65,
@@ -75,11 +195,14 @@ export const ProductCard: React.FC<ProductCardProps> = ({
 
         {/* Badges Container Top-Left */}
         <div className="absolute top-3 left-3 flex flex-col gap-1.5 z-10">
-          {product.discountPercentage && product.discountPercentage > 0 && product.stockStatus !== 'Out of Stock' && product.stockStatus !== 'Unavailable' && (
-            <span className="bg-[#9E315A] text-white text-[10px] font-bold px-2 py-0.5 rounded-full shadow-xs tracking-wider">
-              {product.discountPercentage}% OFF
-            </span>
-          )}
+          {product.discountPercentage &&
+            product.discountPercentage > 0 &&
+            product.stockStatus !== 'Out of Stock' &&
+            product.stockStatus !== 'Unavailable' && (
+              <span className="bg-[#9E315A] text-white text-[10px] font-bold px-2 py-0.5 rounded-full shadow-xs tracking-wider">
+                {product.discountPercentage}% OFF
+              </span>
+            )}
 
           {product.isPreOrder && (
             <span className="bg-[#241B20] text-[#E8CFAF] border border-[#E8CFAF]/40 text-[10px] font-bold px-2 py-0.5 rounded-full shadow-xs tracking-wider uppercase">
@@ -124,9 +247,17 @@ export const ProductCard: React.FC<ProductCardProps> = ({
               ? 'bg-[#9E315A] text-white shadow-md'
               : 'bg-white/80 text-[#3E2F37] hover:bg-white hover:text-[#9E315A] shadow-xs'
           }`}
-          title={isWishlisted ? 'Remove from Wishlist' : 'Add to Wishlist'}
+          title={
+            isWishlisted
+              ? 'Remove from Wishlist'
+              : 'Add to Wishlist'
+          }
         >
-          <Heart className={`w-4 h-4 ${isWishlisted ? 'fill-white' : ''}`} />
+          <Heart
+            className={`w-4 h-4 ${
+              isWishlisted ? 'fill-white' : ''
+            }`}
+          />
         </button>
 
         {/* Quick View Hover Button */}
@@ -146,8 +277,13 @@ export const ProductCard: React.FC<ProductCardProps> = ({
         <div>
           {/* Subcategory / Material */}
           <div className="flex items-center justify-between text-[11px] font-medium text-[#8C5D6C] mb-1">
-            <span className="uppercase tracking-wider">{product.subcategory}</span>
-            <span className="text-[10px] text-[#241B20]/60">{product.color}</span>
+            <span className="uppercase tracking-wider">
+              {product.subcategory}
+            </span>
+
+            <span className="text-[10px] text-[#241B20]/60">
+              {product.color}
+            </span>
           </div>
 
           {/* Product Title */}
@@ -163,33 +299,40 @@ export const ProductCard: React.FC<ProductCardProps> = ({
             {product.shortDescription}
           </p>
 
-          {/* Jewellery Bangle Size selector if applicable */}
-          {product.bangleSizes && product.bangleSizes.length > 0 && (
-            <div className="mt-2.5 pt-2 border-t border-rose-100/80">
-              <div className="flex items-center justify-between text-[10px] text-[#8C5D6C] font-semibold mb-1">
-                <span>Bangle Size (India/UK):</span>
-                <span className="text-[#9E315A] font-bold">{selectedSize || 'Choose'}</span>
+          {/* Jewellery Bangle Size selector */}
+          {product.bangleSizes &&
+            product.bangleSizes.length > 0 && (
+              <div className="mt-2.5 pt-2 border-t border-rose-100/80">
+                <div className="flex items-center justify-between text-[10px] text-[#8C5D6C] font-semibold mb-1">
+                  <span>
+                    Bangle Size (India/UK):
+                  </span>
+
+                  <span className="text-[#9E315A] font-bold">
+                    {selectedSize || 'Choose'}
+                  </span>
+                </div>
+
+                <div className="flex items-center gap-1 flex-wrap">
+                  {product.bangleSizes.map((size) => (
+                    <button
+                      key={size}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setSelectedSize(size);
+                      }}
+                      className={`px-2 py-0.5 rounded text-[10px] font-semibold border transition-all ${
+                        selectedSize === size
+                          ? 'bg-[#9E315A] text-white border-[#9E315A] shadow-2xs'
+                          : 'bg-rose-50 text-[#3E2F37] border-rose-200 hover:border-rose-300'
+                      }`}
+                    >
+                      {size}
+                    </button>
+                  ))}
+                </div>
               </div>
-              <div className="flex items-center gap-1 flex-wrap">
-                {product.bangleSizes.map((size) => (
-                  <button
-                    key={size}
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setSelectedSize(size);
-                    }}
-                    className={`px-2 py-0.5 rounded text-[10px] font-semibold border transition-all ${
-                      selectedSize === size
-                        ? 'bg-[#9E315A] text-white border-[#9E315A] shadow-2xs'
-                        : 'bg-rose-50 text-[#3E2F37] border-rose-200 hover:border-rose-300'
-                    }`}
-                  >
-                    {size}
-                  </button>
-                ))}
-              </div>
-            </div>
-          )}
+            )}
         </div>
 
         {/* Pricing and Action Bottom Bar */}
@@ -197,17 +340,32 @@ export const ProductCard: React.FC<ProductCardProps> = ({
           {/* Price */}
           <div className="flex flex-col">
             <div className="flex items-baseline gap-1.5">
+              {/* Current Price */}
               <span className="font-serif font-bold text-base sm:text-lg text-[#9E315A]">
-                {currencySymbol}{product.price}
+                {formatCurrency(
+                  Number(product.price) || 0,
+                  resolvedCurrencyCode,
+                  currencySymbol
+                )}
               </span>
+
+              {/* Original Price */}
               {product.originalPrice && (
                 <span className="text-xs text-[#8C5D6C] line-through">
-                  {currencySymbol}{product.originalPrice}
+                  {formatCurrency(
+                    Number(product.originalPrice) || 0,
+                    resolvedCurrencyCode,
+                    currencySymbol
+                  )}
                 </span>
               )}
             </div>
+
             {product.unavailabilityReason ? (
-              <span className="text-[10px] text-amber-700 font-medium truncate max-w-[130px]" title={product.unavailabilityReason}>
+              <span
+                className="text-[10px] text-amber-700 font-medium truncate max-w-[130px]"
+                title={product.unavailabilityReason}
+              >
                 {product.unavailabilityReason}
               </span>
             ) : (
@@ -223,18 +381,26 @@ export const ProductCard: React.FC<ProductCardProps> = ({
             )}
           </div>
 
-          {/* Quick Actions (Add to Selection / WhatsApp Direct) */}
+          {/* Quick Actions */}
           <div className="flex items-center gap-1.5">
+            {/* Add to Selection */}
             <button
-              onClick={() => onAddToSelection(product, selectedSize)}
-              disabled={product.stockStatus === 'Unavailable' || product.stockStatus === 'Out of Stock'}
+              onClick={() =>
+                onAddToSelection(product, selectedSize)
+              }
+              disabled={
+                product.stockStatus === 'Unavailable' ||
+                product.stockStatus === 'Out of Stock'
+              }
               className={`p-2 rounded-xl border transition-all duration-200 ${
-                product.stockStatus === 'Unavailable' || product.stockStatus === 'Out of Stock'
+                product.stockStatus === 'Unavailable' ||
+                product.stockStatus === 'Out of Stock'
                   ? 'bg-gray-100 text-gray-400 border-gray-200 cursor-not-allowed opacity-60'
                   : 'bg-rose-50 hover:bg-[#9E315A] text-[#9E315A] hover:text-white border-rose-200'
               }`}
               title={
-                product.stockStatus === 'Unavailable' || product.stockStatus === 'Out of Stock'
+                product.stockStatus === 'Unavailable' ||
+                product.stockStatus === 'Out of Stock'
                   ? 'Item Currently Unavailable'
                   : 'Add to Selection'
               }
@@ -242,8 +408,11 @@ export const ProductCard: React.FC<ProductCardProps> = ({
               <ShoppingBag className="w-4 h-4" />
             </button>
 
+            {/* WhatsApp */}
             <button
-              onClick={() => onOpenWhatsApp(product, selectedSize)}
+              onClick={() =>
+                onOpenWhatsApp(product, selectedSize)
+              }
               className="p-2 rounded-xl bg-[#25D366] hover:bg-[#20ba59] text-white shadow-xs transition-all duration-200"
               title="Enquire on WhatsApp"
             >

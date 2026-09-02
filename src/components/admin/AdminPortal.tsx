@@ -26,8 +26,7 @@ import {
   getAdminTab,
   type AdminTabId,
 } from './adminNavigation';
-import jsPDF from 'jspdf';
-import html2canvas from 'html2canvas';
+import { deleteEnquiry } from '../../services/api';
 
 // ============================================================
 // SECTIONS
@@ -126,7 +125,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
 
   const API_BASE_URL =
   import.meta.env.VITE_API_BASE_URL ||
-  'http://172.20.10.2:4004';
+  'http://:4004';
   // ============================================================
   // NAVIGATION
   // ============================================================
@@ -309,6 +308,10 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
       'noopener,noreferrer'
     );
   };
+
+  const [setEnquiries] = useState<
+    EnquiryOrder[]
+  >([]);
 
   // ============================================================
   // PRODUCT HANDLERS
@@ -609,7 +612,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
       ===================================================== */
 
       const response = await fetch(
-        `${API_BASE_URL}/api/enquiries/${enquiry.id}/status`,
+        `${API_BASE_URL}/enquiries/${enquiry.id}/status`,
         {
           method: 'PATCH',
           headers: {
@@ -986,90 +989,115 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
   // CONFIRM CANCELLATION
   // ============================================================
 
-  const handleConfirmCancellation = () => {
-    if (
-      !cancellationModal?.enquiry
-    ) {
+  const handleConfirmCancellation = async () => {
+    if (!cancellationModal?.enquiry) {
       return;
     }
 
-    const enquiry =
-      cancellationModal.enquiry;
+    const enquiry = cancellationModal.enquiry;
 
     const cancellationReason =
       cancellationModal.reason.trim() ||
       'Cancelled by administrator';
 
-    const updatedEnquiries =
-      enquiries.map(
-        (item): EnquiryOrder =>
-          item.id === enquiry.id
-            ? {
-                ...item,
-                status: 'Cancelled',
-                cancelReason:
-                  cancellationReason,
-                cancelledAt:
-                  new Date().toISOString(),
-              }
-            : item
+    const now = new Date().toISOString();
+
+    const updatedEnquiries = enquiries.map(
+      (item): EnquiryOrder =>
+        item.id === enquiry.id
+          ? {
+              ...item,
+              status: 'Cancelled',
+              cancelReason: cancellationReason,
+              cancelledAt: now,
+              statusUpdatedAt: now,
+            }
+          : item
+    );
+
+    try {
+      await onSaveEnquiries(updatedEnquiries);
+
+      setCancellationModal(null);
+
+      showToast(
+        'Order Cancelled',
+        `Order ${
+          enquiry.orderNumber || enquiry.id
+        } has been cancelled successfully.`
+      );
+    } catch (error) {
+      console.error(
+        'Failed to cancel enquiry:',
+        error
       );
 
-    onSaveEnquiries(
-      updatedEnquiries
-    );
-
-    setCancellationModal(null);
-
-    showToast(
-      'Order Cancelled',
-      `Order ${enquiry.orderNumber || enquiry.id} has been cancelled successfully.`
-    );
+      showToast(
+        'Cancellation Failed',
+        'The order could not be cancelled. Please try again.'
+      );
+    }
   };
 
   // ============================================================
   // DELETE ENQUIRY
   // ============================================================
 
-  const handleDeleteEnquiry = (
+  const handleDeleteEnquiry = async (
     enquiry: EnquiryOrder
   ) => {
-    if (!enquiry) {
-      return;
+    try {
+      if (!enquiry?.id) {
+        throw new Error('Enquiry ID is missing.');
+      }
+
+      console.log('Deleting enquiry:', enquiry.id);
+
+      // 1. Delete from database
+      const result = await deleteEnquiry(enquiry.id);
+
+      console.log('Delete response:', result);
+
+      if (!result?.ok) {
+        throw new Error(
+          result?.message || 'Failed to delete enquiry.'
+        );
+      }
+
+      // 2. Update AdminPortal's enquiry data
+      const updatedEnquiries = enquiries.filter(
+        (item) => item.id !== enquiry.id
+      );
+
+      onSaveEnquiries(updatedEnquiries);
+
+      // 3. Close order details if this enquiry was open
+      setSelectedOrderDetails((current) =>
+        current?.id === enquiry.id
+          ? null
+          : current
+      );
+
+      console.log(
+        'Enquiry deleted successfully:',
+        enquiry.id
+      );
+    } catch (error) {
+      console.error(
+        'Failed to delete enquiry:',
+        error
+      );
+
+      alert(
+        error instanceof Error
+          ? error.message
+          : 'Failed to delete enquiry.'
+      );
+
+      // Important: this allows WhatsAppLeadsPanel
+      // to know that deletion failed.
+      throw error;
     }
-
-    setConfirmationModal({
-      isOpen: true,
-
-      title: 'Delete Enquiry',
-
-      message: `Are you sure you want to permanently delete order ${enquiry.orderNumber || enquiry.id}?`,
-
-      confirmLabel: 'Delete',
-
-      cancelLabel: 'Cancel',
-
-      isDestructive: true,
-
-      onConfirm: () => {
-        const updatedEnquiries =
-          enquiries.filter(
-            (item) =>
-              item.id !== enquiry.id
-          );
-
-        onSaveEnquiries(
-          updatedEnquiries
-        );
-
-        setConfirmationModal(null);
-
-        showToast(
-          'Enquiry Deleted',
-          `Order ${enquiry.orderNumber || enquiry.id} has been removed.`
-        );
-      },
-    });
   };
 
   // ============================================================
@@ -3350,7 +3378,6 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
         settings={settings}
         pendingEnquiriesCount={pendingEnquiriesCount}
         onLogout={onClose}
-        onNavigateToLogin={onClose}
       />
 
       {/* ======================================================
@@ -3888,6 +3915,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
               products={
                 products
               }
+              enquiries={enquiries}
             />
           )}
 

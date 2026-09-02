@@ -284,6 +284,7 @@ const createPool = () => {
       ),
 
       idleTimeoutMillis: 30000,
+
       connectionTimeoutMillis: 10000,
     });
   }
@@ -321,6 +322,7 @@ const createPool = () => {
     ),
 
     idleTimeoutMillis: 30000,
+
     connectionTimeoutMillis: 10000,
   });
 };
@@ -329,14 +331,40 @@ const createPool = () => {
    CORS
 ========================================================= */
 
+/*
+ * IMPORTANT:
+ *
+ * Production frontend:
+ * https://meera-fashion.vercel.app
+ *
+ * Frontend API:
+ * /api/...
+ *
+ * Therefore production frontend and backend are SAME ORIGIN.
+ *
+ * We do NOT perform CORS validation in production.
+ *
+ * CORS is only enabled for local development.
+ */
+
 const isLocalDevelopmentOrigin = (origin) => {
   if (!origin) {
     return true;
   }
 
-  return /^https?:\/\/(localhost|127\.0\.0\.1|0\.0\.0\.0|10\.\d+\.\d+\.\d+|192\.168\.\d+\.\d+|172\.(1[6-9]|2\d|3[01])\.\d+\.\d+)(:\d+)?$/i.test(
+  return /^https?:\/\/(localhost|127\.0\.0\.1|0\.0\.0\.0|10\.\d+\.\d+\.\d+\.\d+|192\.168\.\d+\.\d+|172\.(1[6-9]|2\d|3[01])\.\d+\.\d+)(:\d+)?$/i.test(
     origin
   );
+};
+
+const normalizeOrigin = (value) => {
+  if (typeof value !== 'string') {
+    return '';
+  }
+
+  return value
+    .trim()
+    .replace(/\/$/, '');
 };
 
 /* =========================================================
@@ -345,204 +373,114 @@ const isLocalDevelopmentOrigin = (origin) => {
 
 export function createApp() {
   const app = express();
+
   const pool = createPool();
 
-  /* -------------------------------------------------------
-     ALLOWED ORIGINS
-  ------------------------------------------------------- */
-
-  const productionOrigin =
-    'https://meera-fashion.vercel.app';
-
-  const envOrigins = [
-    process.env.CLIENT_URL,
-    process.env.FRONTEND_URL,
-    process.env.ALLOWED_ORIGINS,
-  ]
-    .flatMap((value) =>
-      typeof value === 'string'
-        ? value.split(',')
-        : []
-    )
-    .map((value) =>
-      value.trim().replace(/\/$/, '')
-    )
-    .filter(Boolean);
-
-  /*
-   * Always allow the production frontend.
-   *
-   * IMPORTANT:
-   * VITE_API_BASE_URL must NOT be here because
-   * /api is a path, not an origin.
-   */
-
-  const allowedOrigins = new Set([
-    productionOrigin,
-    ...envOrigins,
-  ]);
-
-  console.log(
-    '🌐 Allowed CORS origins:',
-    Array.from(allowedOrigins)
-  );
+  const isProduction =
+    process.env.NODE_ENV === 'production';
 
   /* -------------------------------------------------------
-     CORS MIDDLEWARE
+     CORS
   ------------------------------------------------------- */
 
-  app.use(
-    cors({
-      origin: (origin, callback) => {
-        /*
-         * Requests without an Origin header can happen from
-         * tools such as curl, server-to-server requests,
-         * health checks, etc.
-         */
+  if (!isProduction) {
+    const envOrigins = [
+      process.env.CLIENT_URL,
+      process.env.FRONTEND_URL,
+      process.env.ALLOWED_ORIGINS,
+    ]
+      .flatMap((value) =>
+        typeof value === 'string'
+          ? value.split(',')
+          : []
+      )
+      .map(normalizeOrigin)
+      .filter(Boolean);
 
-        if (!origin) {
-          callback(null, true);
-          return;
-        }
+    const allowedOrigins = new Set(
+      envOrigins
+    );
 
-        const normalizedOrigin =
-          origin.replace(/\/$/, '');
+    console.log(
+      '🌐 Development CORS origins:',
+      Array.from(allowedOrigins)
+    );
 
-        /*
-         * Production frontend
-         */
+    app.use(
+      cors({
+        origin: (origin, callback) => {
+          /*
+           * Requests without an Origin header:
+           * curl, server-to-server, health checks, etc.
+           */
+          if (!origin) {
+            callback(null, true);
+            return;
+          }
 
-        if (
-          allowedOrigins.has(
-            normalizedOrigin
-          )
-        ) {
-          callback(null, true);
-          return;
-        }
+          const normalizedOrigin =
+            normalizeOrigin(origin);
 
-        /*
-         * Local development
-         */
+          if (
+            allowedOrigins.has(
+              normalizedOrigin
+            ) ||
+            isLocalDevelopmentOrigin(
+              normalizedOrigin
+            )
+          ) {
+            callback(null, true);
+            return;
+          }
 
-        if (
-          isLocalDevelopmentOrigin(
-            normalizedOrigin
-          )
-        ) {
-          callback(null, true);
-          return;
-        }
+          console.warn(
+            `🚫 Blocked development CORS origin: ${origin}`
+          );
 
-        console.warn(
-          `🚫 Blocked CORS origin: ${origin}`
-        );
+          callback(
+            new Error('Not allowed by CORS')
+          );
+        },
 
-        callback(
-          new Error(
-            'Not allowed by CORS'
-          )
-        );
-      },
+        credentials: true,
 
-      credentials: true,
+        methods: [
+          'GET',
+          'POST',
+          'PUT',
+          'PATCH',
+          'DELETE',
+          'OPTIONS',
+        ],
 
-      methods: [
-        'GET',
-        'POST',
-        'PUT',
-        'PATCH',
-        'DELETE',
-        'OPTIONS',
-      ],
+        allowedHeaders: [
+          'Content-Type',
+          'Authorization',
+          'Accept',
+          'Origin',
+          'X-Requested-With',
+          'x-device-id',
+          'x-session-id',
+          'x-client-id',
+        ],
 
-      allowedHeaders: [
-        'Content-Type',
-        'Authorization',
-        'Accept',
-        'Origin',
-        'X-Requested-With',
-        'x-device-id',
-        'x-session-id',
-        'x-client-id',
-      ],
+        exposedHeaders: [
+          'Content-Length',
+          'Content-Type',
+        ],
 
-      exposedHeaders: [
-        'Content-Length',
-        'Content-Type',
-      ],
+        optionsSuccessStatus: 204,
+      })
+    );
+  } else {
+    console.log(
+      '🌐 Production mode: CORS validation disabled.'
+    );
 
-      optionsSuccessStatus: 204,
-    })
-  );
-
-  /*
-   * Explicit OPTIONS / preflight support.
-   *
-   * Use the same CORS configuration rather than cors()
-   * with a separate configuration.
-   */
-
-  app.options(
-    '*',
-    cors({
-      origin: (origin, callback) => {
-        if (!origin) {
-          callback(null, true);
-          return;
-        }
-
-        const normalizedOrigin =
-          origin.replace(/\/$/, '');
-
-        if (
-          allowedOrigins.has(
-            normalizedOrigin
-          ) ||
-          isLocalDevelopmentOrigin(
-            normalizedOrigin
-          )
-        ) {
-          callback(null, true);
-          return;
-        }
-
-        console.warn(
-          `🚫 Blocked CORS preflight origin: ${origin}`
-        );
-
-        callback(
-          new Error(
-            'Not allowed by CORS'
-          )
-        );
-      },
-
-      credentials: true,
-
-      methods: [
-        'GET',
-        'POST',
-        'PUT',
-        'PATCH',
-        'DELETE',
-        'OPTIONS',
-      ],
-
-      allowedHeaders: [
-        'Content-Type',
-        'Authorization',
-        'Accept',
-        'Origin',
-        'X-Requested-With',
-        'x-device-id',
-        'x-session-id',
-        'x-client-id',
-      ],
-
-      optionsSuccessStatus: 204,
-    })
-  );
+    console.log(
+      '🌸 Frontend and API are using the same Vercel origin.'
+    );
+  }
 
   /* -------------------------------------------------------
      BODY PARSER
@@ -819,7 +757,6 @@ export function createApp() {
                 category,
                 revenue:
                   Number(revenue),
-
                 percentage:
                   totalCategoryRevenue >
                   0
@@ -925,6 +862,7 @@ export function createApp() {
 
         return res.json({
           success: true,
+
           period: range,
 
           summary: {
@@ -939,6 +877,7 @@ export function createApp() {
           },
 
           revenueByCategory,
+
           topProducts,
         });
       } catch (error) {
@@ -1040,6 +979,14 @@ export function createApp() {
               ? [req.body]
               : [];
 
+        if (items.length === 0) {
+          return res.status(400).json({
+            ok: false,
+            message:
+              'No products were provided.',
+          });
+        }
+
         for (const product of items) {
           const values = [
             product.id ||
@@ -1133,7 +1080,6 @@ export function createApp() {
              * Always update timestamp when
              * product is saved.
              */
-
             new Date().toISOString(),
           ];
 
@@ -1168,65 +1114,44 @@ export function createApp() {
                 $9,$10,$11,$12,$13,$14,$15,
                 $16,$17,$18,$19,$20,$21,$22
               )
-
               ON CONFLICT (id)
               DO UPDATE SET
-
                 name = EXCLUDED.name,
-
                 slug = EXCLUDED.slug,
-
                 category =
                   EXCLUDED.category,
-
                 subcategory =
                   EXCLUDED.subcategory,
-
                 price =
                   EXCLUDED.price,
-
                 "originalPrice" =
                   EXCLUDED."originalPrice",
-
                 "discountPercentage" =
                   EXCLUDED."discountPercentage",
-
                 description =
                   EXCLUDED.description,
-
                 "shortDescription" =
                   EXCLUDED."shortDescription",
-
                 material =
                   EXCLUDED.material,
-
                 color =
                   EXCLUDED.color,
-
                 "stockStatus" =
                   EXCLUDED."stockStatus",
-
                 "stockQuantity" =
                   EXCLUDED."stockQuantity",
-
                 "isPreOrder" =
                   EXCLUDED."isPreOrder",
-
                 "isFeatured" =
                   EXCLUDED."isFeatured",
-
                 "isNewArrival" =
                   EXCLUDED."isNewArrival",
-
                 "isOffer" =
                   EXCLUDED."isOffer",
-
                 "isDancePerformance" =
                   EXCLUDED."isDancePerformance",
-
                 images =
                   EXCLUDED.images,
-
                 "updatedAt" =
                   EXCLUDED."updatedAt"
             `,
@@ -1786,19 +1711,15 @@ export function createApp() {
               status,
               notes,
               source,
-
               TO_CHAR(
                 created_at,
                 'YYYY-MM-DD HH24:MI:SS.MS'
               ) AS created_at,
-
               TO_CHAR(
                 status_updated_at,
                 'YYYY-MM-DD HH24:MI:SS.MS'
               ) AS status_updated_at
-
             FROM enquiries
-
             ORDER BY created_at DESC
           `);
 
@@ -1830,12 +1751,12 @@ export function createApp() {
                     item.items
                   );
 
-                item.created_at =
-                  item.created_at ||
+                item.createdAt =
+                  item.createdAt ||
                   null;
 
-                item.status_updated_at =
-                  item.status_updated_at ||
+                item.statusUpdatedAt =
+                  item.statusUpdatedAt ||
                   null;
 
                 return item;
@@ -1872,7 +1793,7 @@ export function createApp() {
         const enquiries =
           Array.isArray(req.body)
             ? req.body
-            : req.body.enquiries || [];
+            : req.body?.enquiries || [];
 
         for (const enquiry of enquiries) {
           const {
@@ -1937,71 +1858,71 @@ export function createApp() {
                 $8,$9,$10,$11,$12,$13,
                 $14,$15,$16
               )
-
               ON CONFLICT (id)
               DO UPDATE SET
-
                 order_number =
                   EXCLUDED.order_number,
-
                 customer_name =
                   EXCLUDED.customer_name,
-
                 customer_phone =
                   EXCLUDED.customer_phone,
-
                 customer_email =
                   EXCLUDED.customer_email,
-
                 items =
                   EXCLUDED.items,
-
                 subtotal =
                   EXCLUDED.subtotal,
-
                 discount =
                   EXCLUDED.discount,
-
                 notes =
                   EXCLUDED.notes,
-
                 status =
                   EXCLUDED.status,
-
                 total =
                   EXCLUDED.total,
-
                 source =
                   EXCLUDED.source,
-
                 status_updated_at =
                   EXCLUDED.status_updated_at,
-
                 cancel_reason =
                   EXCLUDED.cancel_reason,
-
                 cancelled_at =
                   EXCLUDED.cancelled_at
             `,
             [
               id,
+
               orderNumber,
+
               customerName,
+
               customerPhone,
+
               customerEmail,
+
               JSON.stringify(
                 items || []
               ),
+
               subtotal,
+
               discount,
+
               notes,
+
               status,
+
               total,
+
               source,
+
               createdAt ||
                 new Date(),
+
               finalStatusUpdatedAt,
+
               finalCancelReason,
+
               finalCancelledAt,
             ]
           );
@@ -2611,10 +2532,8 @@ export function createApp() {
                 $8,$9,$10,$11,$12,$13,
                 $14,$15,$16,$17
               )
-
               ON CONFLICT (id)
               DO UPDATE SET
-
                 invoice_number =
                   EXCLUDED.invoice_number,
 
@@ -2684,31 +2603,6 @@ export function createApp() {
               : String(error),
         });
       }
-    }
-  );
-
-  /* =======================================================
-     CORS ERROR HANDLER
-  ======================================================= */
-
-  app.use(
-    (error, req, res, next) => {
-      if (
-        error &&
-        error.message ===
-          'Not allowed by CORS'
-      ) {
-        return res.status(403).json({
-          ok: false,
-          message:
-            'CORS origin is not allowed.',
-          origin:
-            req.headers.origin ||
-            null,
-        });
-      }
-
-      return next(error);
     }
   );
 

@@ -66,18 +66,11 @@ const normalizeJsonArray = (value) => {
 };
 
 const safeString = (value, fallback = '') => {
-  if (value === null || value === undefined) {
-    return fallback;
-  }
+  if (value === null || value === undefined) return fallback;
 
-  if (typeof value === 'string') {
-    return value;
-  }
+  if (typeof value === 'string') return value;
 
-  if (
-    typeof value === 'number' ||
-    typeof value === 'boolean'
-  ) {
+  if (typeof value === 'number' || typeof value === 'boolean') {
     return String(value);
   }
 
@@ -100,11 +93,7 @@ const normalizeInvoiceItems = (value) => {
   }
 
   return items.map((item) => {
-    if (
-      !item ||
-      typeof item !== 'object' ||
-      Array.isArray(item)
-    ) {
+    if (!item || typeof item !== 'object' || Array.isArray(item)) {
       return {
         description: 'Boutique Item',
         quantity: 1,
@@ -138,6 +127,7 @@ const normalizeInvoiceItems = (value) => {
     return {
       ...normalized,
 
+      // Always return React-safe scalar values
       description: safeString(
         normalized.description,
         'Boutique Item'
@@ -156,9 +146,12 @@ const normalizeInvoiceItems = (value) => {
           : null,
 
       quantity,
+
       unitPrice,
+
       total,
 
+      // Prevent nested objects from accidentally being rendered
       category:
         typeof normalized.category === 'string'
           ? normalized.category
@@ -331,40 +324,14 @@ const createPool = () => {
    CORS
 ========================================================= */
 
-/*
- * IMPORTANT:
- *
- * Production frontend:
- * https://meera-fashion.vercel.app
- *
- * Frontend API:
- * /api/...
- *
- * Therefore production frontend and backend are SAME ORIGIN.
- *
- * We do NOT perform CORS validation in production.
- *
- * CORS is only enabled for local development.
- */
-
 const isLocalDevelopmentOrigin = (origin) => {
   if (!origin) {
     return true;
   }
 
-  return /^https?:\/\/(localhost|127\.0\.0\.1|0\.0\.0\.0|10\.\d+\.\d+\.\d+\.\d+|192\.168\.\d+\.\d+|172\.(1[6-9]|2\d|3[01])\.\d+\.\d+)(:\d+)?$/i.test(
+  return /^https?:\/\/(localhost|127\.0\.0\.1|0\.0\.0\.0|10\.\d+\.\d+\.\d+|192\.168\.\d+\.\d+|172\.(1[6-9]|2\d|3[01])\.\d+\.\d+)(:\d+)?$/i.test(
     origin
   );
-};
-
-const normalizeOrigin = (value) => {
-  if (typeof value !== 'string') {
-    return '';
-  }
-
-  return value
-    .trim()
-    .replace(/\/$/, '');
 };
 
 /* =========================================================
@@ -376,111 +343,105 @@ export function createApp() {
 
   const pool = createPool();
 
-  const isProduction =
-    process.env.NODE_ENV === 'production';
-
   /* -------------------------------------------------------
-     CORS
+     ALLOWED ORIGINS
   ------------------------------------------------------- */
 
-  if (!isProduction) {
-    const envOrigins = [
-      process.env.CLIENT_URL,
-      process.env.FRONTEND_URL,
-      process.env.ALLOWED_ORIGINS,
-    ]
-      .flatMap((value) =>
-        typeof value === 'string'
-          ? value.split(',')
-          : []
-      )
-      .map(normalizeOrigin)
-      .filter(Boolean);
+  const envOrigins = [
+    process.env.CLIENT_URL,
+    process.env.FRONTEND_URL,
+    process.env.VITE_API_BASE_URL,
+    process.env.ALLOWED_ORIGINS,
+  ]
+    .flatMap((value) =>
+      typeof value === 'string'
+        ? value.split(',')
+        : []
+    )
+    .map((value) =>
+      value.trim()
+    )
+    .filter(Boolean);
 
-    const allowedOrigins = new Set(
-      envOrigins
-    );
+  const allowedOrigins =
+    new Set(envOrigins);
 
-    console.log(
-      '🌐 Development CORS origins:',
-      Array.from(allowedOrigins)
-    );
+  /*
+   * IMPORTANT:
+   * If frontend is running at:
+   *
+   * http://:3000
+   *
+   * it will now be accepted.
+   */
 
-    app.use(
-      cors({
-        origin: (origin, callback) => {
-          /*
-           * Requests without an Origin header:
-           * curl, server-to-server, health checks, etc.
-           */
-          if (!origin) {
-            callback(null, true);
-            return;
-          }
+  app.use(
+    cors({
+      origin: (origin, callback) => {
+        if (
+          !origin ||
+          allowedOrigins.has(origin) ||
+          isLocalDevelopmentOrigin(origin)
+        ) {
+          callback(null, true);
+          return;
+        }
 
-          const normalizedOrigin =
-            normalizeOrigin(origin);
+        console.warn(
+          `Blocked CORS origin: ${origin}`
+        );
 
-          if (
-            allowedOrigins.has(
-              normalizedOrigin
-            ) ||
-            isLocalDevelopmentOrigin(
-              normalizedOrigin
-            )
-          ) {
-            callback(null, true);
-            return;
-          }
+        callback(
+          new Error(
+            'Not allowed by CORS'
+          )
+        );
+      },
 
-          console.warn(
-            `🚫 Blocked development CORS origin: ${origin}`
-          );
+      credentials: true,
 
-          callback(
-            new Error('Not allowed by CORS')
-          );
-        },
+      methods: [
+        'GET',
+        'POST',
+        'PUT',
+        'PATCH',
+        'DELETE',
+        'OPTIONS',
+      ],
 
-        credentials: true,
+      /*
+       * IMPORTANT:
+       * x-device-id was missing before.
+       */
 
-        methods: [
-          'GET',
-          'POST',
-          'PUT',
-          'PATCH',
-          'DELETE',
-          'OPTIONS',
-        ],
+      allowedHeaders: [
+        'Content-Type',
+        'Authorization',
+        'Accept',
+        'Origin',
+        'X-Requested-With',
+        'x-device-id',
+        'x-session-id',
+        'x-client-id',
+      ],
 
-        allowedHeaders: [
-          'Content-Type',
-          'Authorization',
-          'Accept',
-          'Origin',
-          'X-Requested-With',
-          'x-device-id',
-          'x-session-id',
-          'x-client-id',
-        ],
+      exposedHeaders: [
+        'Content-Length',
+        'Content-Type',
+      ],
 
-        exposedHeaders: [
-          'Content-Length',
-          'Content-Type',
-        ],
+      optionsSuccessStatus: 204,
+    })
+  );
 
-        optionsSuccessStatus: 204,
-      })
-    );
-  } else {
-    console.log(
-      '🌐 Production mode: CORS validation disabled.'
-    );
+  /*
+   * Explicitly handle preflight requests.
+   */
 
-    console.log(
-      '🌸 Frontend and API are using the same Vercel origin.'
-    );
-  }
+  app.options(
+    '*',
+    cors()
+  );
 
   /* -------------------------------------------------------
      BODY PARSER
@@ -530,6 +491,7 @@ export function createApp() {
           status: 'ok',
           database: 'postgres',
           postgres: 'not_connected',
+
           message:
             'PostgreSQL/Neon is not connected yet. The backend is ready and will connect when the database is available.',
         });
@@ -568,7 +530,9 @@ export function createApp() {
           );
         }
 
-        /* PRODUCTS */
+        /* -------------------------------------------------
+           PRODUCTS
+        ------------------------------------------------- */
 
         const productsResult =
           await pool.query(`
@@ -583,7 +547,9 @@ export function createApp() {
         const products =
           productsResult.rows;
 
-        /* INVOICES */
+        /* -------------------------------------------------
+           INVOICES
+        ------------------------------------------------- */
 
         const invoicesResult =
           await pool.query(
@@ -599,7 +565,9 @@ export function createApp() {
         const invoices =
           invoicesResult.rows;
 
-        /* ENQUIRIES */
+        /* -------------------------------------------------
+           ENQUIRIES
+        ------------------------------------------------- */
 
         const enquiriesResult =
           await pool.query(
@@ -619,7 +587,9 @@ export function createApp() {
         const enquiries =
           enquiriesResult.rows;
 
-        /* PAID INVOICES */
+        /* -------------------------------------------------
+           PAID INVOICES
+        ------------------------------------------------- */
 
         const paidInvoices =
           invoices.filter(
@@ -638,7 +608,9 @@ export function createApp() {
             }
           );
 
-        /* REVENUE */
+        /* -------------------------------------------------
+           REVENUE
+        ------------------------------------------------- */
 
         const totalRevenue =
           paidInvoices.reduce(
@@ -650,7 +622,9 @@ export function createApp() {
             0
           );
 
-        /* ORDERS */
+        /* -------------------------------------------------
+           ORDERS
+        ------------------------------------------------- */
 
         const totalOrders =
           invoices.length;
@@ -674,7 +648,9 @@ export function createApp() {
             }
           ).length;
 
-        /* ENQUIRIES */
+        /* -------------------------------------------------
+           ENQUIRIES
+        ------------------------------------------------- */
 
         const totalEnquiries =
           enquiries.length;
@@ -686,7 +662,9 @@ export function createApp() {
               100
             : 0;
 
-        /* CATEGORY REVENUE */
+        /* -------------------------------------------------
+           CATEGORY REVENUE
+        ------------------------------------------------- */
 
         const categoryRevenue = {};
 
@@ -757,6 +735,7 @@ export function createApp() {
                 category,
                 revenue:
                   Number(revenue),
+
                 percentage:
                   totalCategoryRevenue >
                   0
@@ -772,7 +751,9 @@ export function createApp() {
                 a.revenue
             );
 
-        /* TOP PRODUCTS */
+        /* -------------------------------------------------
+           TOP PRODUCTS
+        ------------------------------------------------- */
 
         const productSales = {};
 
@@ -888,8 +869,10 @@ export function createApp() {
 
         return res.status(500).json({
           success: false,
+
           message:
             'Failed to load analytics.',
+
           details:
             error instanceof Error
               ? error.message
@@ -929,8 +912,10 @@ export function createApp() {
 
         return res.status(500).json({
           ok: false,
+
           message:
             'Failed to load products.',
+
           details:
             error instanceof Error
               ? error.message
@@ -946,8 +931,7 @@ export function createApp() {
       try {
         const toTimestamp = (
           value,
-          fallback =
-            new Date().toISOString()
+          fallback = new Date().toISOString()
         ) => {
           if (
             value === undefined ||
@@ -958,34 +942,20 @@ export function createApp() {
             return fallback;
           }
 
-          const date =
-            new Date(value);
+          const date = new Date(value);
 
-          if (
-            Number.isNaN(
-              date.getTime()
-            )
-          ) {
+          if (Number.isNaN(date.getTime())) {
             return fallback;
           }
 
           return date.toISOString();
         };
-
         const items =
           Array.isArray(req.body)
             ? req.body
             : req.body
               ? [req.body]
               : [];
-
-        if (items.length === 0) {
-          return res.status(400).json({
-            ok: false,
-            message:
-              'No products were provided.',
-          });
-        }
 
         for (const product of items) {
           const values = [
@@ -1072,15 +1042,8 @@ export function createApp() {
               product.images ?? {}
             ),
 
-            toTimestamp(
-              product.createdAt
-            ),
-
-            /*
-             * Always update timestamp when
-             * product is saved.
-             */
-            new Date().toISOString(),
+            toTimestamp(product.createdAt),
+            toTimestamp(product.updatedAt),
           ];
 
           await pool.query(
@@ -1114,16 +1077,14 @@ export function createApp() {
                 $9,$10,$11,$12,$13,$14,$15,
                 $16,$17,$18,$19,$20,$21,$22
               )
+
               ON CONFLICT (id)
               DO UPDATE SET
                 name = EXCLUDED.name,
                 slug = EXCLUDED.slug,
-                category =
-                  EXCLUDED.category,
-                subcategory =
-                  EXCLUDED.subcategory,
-                price =
-                  EXCLUDED.price,
+                category = EXCLUDED.category,
+                subcategory = EXCLUDED.subcategory,
+                price = EXCLUDED.price,
                 "originalPrice" =
                   EXCLUDED."originalPrice",
                 "discountPercentage" =
@@ -1159,10 +1120,6 @@ export function createApp() {
           );
         }
 
-        console.log(
-          `✅ Saved ${items.length} product(s)`
-        );
-
         return res.json({
           ok: true,
           count: items.length,
@@ -1175,8 +1132,10 @@ export function createApp() {
 
         return res.status(500).json({
           ok: false,
+
           message:
             'Failed to save products.',
+
           details:
             error instanceof Error
               ? error.message
@@ -1338,8 +1297,10 @@ export function createApp() {
 
         return res.status(500).json({
           ok: false,
+
           message:
             'Failed to save selection.',
+
           details:
             error instanceof Error
               ? error.message
@@ -1459,8 +1420,10 @@ export function createApp() {
 
         return res.status(500).json({
           ok: false,
+
           message:
             'Failed to save wishlist.',
+
           details:
             error instanceof Error
               ? error.message
@@ -1527,12 +1490,10 @@ export function createApp() {
             : '£';
 
         const currencyCode =
-          settings.currencyCode?.trim() ||
-          'GBP';
+          settings.currencyCode?.trim() || 'GBP';
 
         const values = [
-          settings.brandName ||
-            "Meera's Fashion",
+          settings.brandName || "Meera's Fashion",
 
           settings.tagline ||
             'Traditional Clothing And Jewelleries',
@@ -1573,18 +1534,12 @@ export function createApp() {
           settings.announcementText ||
             '🌸 Welcome to Meera Fashion Boutique — Free UK Royal Mail Delivery on Orders over £100 | WhatsApp Concierge Available',
 
-          settings.showAnnouncement !==
-          undefined
-            ? Boolean(
-                settings.showAnnouncement
-              )
+          settings.showAnnouncement !== undefined
+            ? Boolean(settings.showAnnouncement)
             : true,
 
-          settings.enableRentalMode !==
-          undefined
-            ? Boolean(
-                settings.enableRentalMode
-              )
+          settings.enableRentalMode !== undefined
+            ? Boolean(settings.enableRentalMode)
             : false,
 
           currencySymbol,
@@ -1592,11 +1547,11 @@ export function createApp() {
           currencyCode,
         ];
 
-        /* INSERT */
+        /* -------------------------------------------------
+           INSERT
+        ------------------------------------------------- */
 
-        if (
-          row.rows.length === 0
-        ) {
+        if (row.rows.length === 0) {
           await pool.query(
             `
               INSERT INTO settings (
@@ -1631,7 +1586,9 @@ export function createApp() {
           );
         }
 
-        /* UPDATE */
+        /* -------------------------------------------------
+           UPDATE
+        ------------------------------------------------- */
 
         else {
           await pool.query(
@@ -1677,8 +1634,10 @@ export function createApp() {
 
         return res.status(500).json({
           ok: false,
+
           message:
             'Failed to save settings.',
+
           details:
             error instanceof Error
               ? error.message
@@ -1696,67 +1655,95 @@ export function createApp() {
     '/api/enquiries',
     async (req, res) => {
       try {
-        const result =
-          await pool.query(`
-            SELECT
-              id,
-              order_number,
-              customer_name,
-              customer_phone,
-              customer_email,
-              items,
-              subtotal,
-              discount,
-              total,
-              status,
-              notes,
-              source,
-              TO_CHAR(
-                created_at,
-                'YYYY-MM-DD HH24:MI:SS.MS'
-              ) AS created_at,
-              TO_CHAR(
-                status_updated_at,
-                'YYYY-MM-DD HH24:MI:SS.MS'
-              ) AS status_updated_at
-            FROM enquiries
-            ORDER BY created_at DESC
-          `);
+        const result = await pool.query(`
+          SELECT
+            id,
+            order_number,
+            customer_name,
+            customer_phone,
+            customer_email,
+            items,
+            subtotal,
+            discount,
+            total,
+            status,
+            notes,
+            source,
+
+            /*
+            * IMPORTANT:
+            * Convert PostgreSQL timestamps into plain strings.
+            * This prevents pg / Date objects from reaching React.
+            */
+
+            TO_CHAR(
+              created_at,
+              'YYYY-MM-DD HH24:MI:SS.MS'
+            ) AS created_at,
+
+            TO_CHAR(
+              status_updated_at,
+              'YYYY-MM-DD HH24:MI:SS.MS'
+            ) AS status_updated_at
+
+          FROM enquiries
+
+          ORDER BY created_at DESC
+        `);
 
         const enquiries =
           normalizeArrayResponse(
             result.rows,
             [
               (item) => {
-                item.subtotal =
-                  toNumber(
-                    item.subtotal,
-                    0
-                  );
+                /*
+                * --------------------------------------------------
+                * NUMBERS
+                * --------------------------------------------------
+                */
 
-                item.discount =
-                  toNumber(
-                    item.discount,
-                    0
-                  );
+                item.subtotal = toNumber(
+                  item.subtotal,
+                  0
+                );
 
-                item.total =
-                  toNumber(
-                    item.total,
-                    0
-                  );
+                item.discount = toNumber(
+                  item.discount,
+                  0
+                );
+
+                item.total = toNumber(
+                  item.total,
+                  0
+                );
+
+                /*
+                * --------------------------------------------------
+                * ITEMS
+                * --------------------------------------------------
+                */
 
                 item.items =
                   normalizeJsonArray(
                     item.items
                   );
 
-                item.createdAt =
-                  item.createdAt ||
-                  null;
+                /*
+                * --------------------------------------------------
+                * DATES
+                *
+                * These are ALREADY strings because of TO_CHAR()
+                *
+                * Example:
+                * "2026-09-01 08:08:56.801"
+                * --------------------------------------------------
+                */
 
-                item.statusUpdatedAt =
-                  item.statusUpdatedAt ||
+                item.created_at =
+                  item.created_at || null;
+
+                item.status_updated_at =
+                  item.status_updated_at ||
                   null;
 
                 return item;
@@ -1764,9 +1751,47 @@ export function createApp() {
             ]
           );
 
-        return res.json(
-          enquiries
+        /*
+        * --------------------------------------------------------
+        * DEBUG
+        * --------------------------------------------------------
+        *
+        * This should now show strings, NOT { ... } objects.
+        */
+
+        console.log(
+          '=========================================='
         );
+
+        console.log(
+          '📅 ENQUIRIES API DATE DEBUG'
+        );
+
+        if (enquiries.length > 0) {
+          console.log({
+            id: enquiries[0].id,
+
+            createdAt:
+              enquiries[0].createdAt,
+
+            createdAtType:
+              typeof enquiries[0].createdAt,
+
+            statusUpdatedAt:
+              enquiries[0].statusUpdatedAt,
+
+            statusUpdatedAtType:
+              typeof enquiries[0]
+                .statusUpdatedAt,
+          });
+        }
+
+        console.log(
+          '=========================================='
+        );
+
+        return res.json(enquiries);
+
       } catch (error) {
         console.error(
           '❌ Failed to load enquiries:',
@@ -1786,643 +1811,533 @@ export function createApp() {
     }
   );
 
-  app.post(
-    '/api/enquiries',
-    async (req, res) => {
-      try {
-        const enquiries =
-          Array.isArray(req.body)
-            ? req.body
-            : req.body?.enquiries || [];
 
-        for (const enquiry of enquiries) {
-          const {
+  app.post('/api/enquiries', async (req, res) => {
+    try {
+      const enquiries = Array.isArray(req.body)
+        ? req.body
+        : req.body.enquiries || [];
+
+      for (const enquiry of enquiries) {
+        const {
+          id,
+          orderNumber,
+          customerName,
+          customerPhone,
+          customerEmail,
+          items,
+          subtotal,
+          discount,
+          notes,
+          status,
+          total,
+          source,
+          createdAt,
+          statusUpdatedAt,
+          status_updated_at,
+          cancelReason,
+          cancel_reason,
+          cancelledAt,
+          cancelled_at,
+        } = enquiry;
+
+        // Support both camelCase and snake_case
+        const finalStatusUpdatedAt =
+          statusUpdatedAt ||
+          status_updated_at ||
+          new Date();
+
+        const finalCancelReason =
+          cancelReason ||
+          cancel_reason ||
+          null;
+
+        const finalCancelledAt =
+          cancelledAt ||
+          cancelled_at ||
+          null;
+
+        await pool.query(
+          `
+            INSERT INTO enquiries (
+              id,
+              order_number,
+              customer_name,
+              customer_phone,
+              customer_email,
+              items,
+              subtotal,
+              discount,
+              notes,
+              status,
+              total,
+              source,
+              created_at,
+              status_updated_at,
+              cancel_reason,
+              cancelled_at
+            )
+            VALUES (
+              $1, $2, $3, $4, $5, $6, $7,
+              $8, $9, $10, $11, $12, $13,
+              $14, $15, $16
+            )
+
+            ON CONFLICT (id)
+            DO UPDATE SET
+              order_number = EXCLUDED.order_number,
+              customer_name = EXCLUDED.customer_name,
+              customer_phone = EXCLUDED.customer_phone,
+              customer_email = EXCLUDED.customer_email,
+              items = EXCLUDED.items,
+              subtotal = EXCLUDED.subtotal,
+              discount = EXCLUDED.discount,
+              notes = EXCLUDED.notes,
+              status = EXCLUDED.status,
+              total = EXCLUDED.total,
+              source = EXCLUDED.source,
+              status_updated_at = EXCLUDED.status_updated_at,
+              cancel_reason = EXCLUDED.cancel_reason,
+              cancelled_at = EXCLUDED.cancelled_at
+          `,
+          [
             id,
             orderNumber,
             customerName,
             customerPhone,
             customerEmail,
-            items,
+            JSON.stringify(items || []),
             subtotal,
             discount,
             notes,
             status,
             total,
             source,
-            createdAt,
-            statusUpdatedAt,
-            status_updated_at,
-            cancelReason,
-            cancel_reason,
-            cancelledAt,
-            cancelled_at,
-          } = enquiry;
-
-          const finalStatusUpdatedAt =
-            statusUpdatedAt ||
-            status_updated_at ||
-            new Date();
-
-          const finalCancelReason =
-            cancelReason ||
-            cancel_reason ||
-            null;
-
-          const finalCancelledAt =
-            cancelledAt ||
-            cancelled_at ||
-            null;
-
-          await pool.query(
-            `
-              INSERT INTO enquiries (
-                id,
-                order_number,
-                customer_name,
-                customer_phone,
-                customer_email,
-                items,
-                subtotal,
-                discount,
-                notes,
-                status,
-                total,
-                source,
-                created_at,
-                status_updated_at,
-                cancel_reason,
-                cancelled_at
-              )
-              VALUES (
-                $1,$2,$3,$4,$5,$6,$7,
-                $8,$9,$10,$11,$12,$13,
-                $14,$15,$16
-              )
-              ON CONFLICT (id)
-              DO UPDATE SET
-                order_number =
-                  EXCLUDED.order_number,
-                customer_name =
-                  EXCLUDED.customer_name,
-                customer_phone =
-                  EXCLUDED.customer_phone,
-                customer_email =
-                  EXCLUDED.customer_email,
-                items =
-                  EXCLUDED.items,
-                subtotal =
-                  EXCLUDED.subtotal,
-                discount =
-                  EXCLUDED.discount,
-                notes =
-                  EXCLUDED.notes,
-                status =
-                  EXCLUDED.status,
-                total =
-                  EXCLUDED.total,
-                source =
-                  EXCLUDED.source,
-                status_updated_at =
-                  EXCLUDED.status_updated_at,
-                cancel_reason =
-                  EXCLUDED.cancel_reason,
-                cancelled_at =
-                  EXCLUDED.cancelled_at
-            `,
-            [
-              id,
-
-              orderNumber,
-
-              customerName,
-
-              customerPhone,
-
-              customerEmail,
-
-              JSON.stringify(
-                items || []
-              ),
-
-              subtotal,
-
-              discount,
-
-              notes,
-
-              status,
-
-              total,
-
-              source,
-
-              createdAt ||
-                new Date(),
-
-              finalStatusUpdatedAt,
-
-              finalCancelReason,
-
-              finalCancelledAt,
-            ]
-          );
-        }
-
-        return res.json({
-          ok: true,
-          message:
-            'Enquiries saved successfully.',
-        });
-      } catch (error) {
-        console.error(
-          '❌ Failed to save enquiries:',
-          error
+            createdAt || new Date(),
+            finalStatusUpdatedAt,
+            finalCancelReason,
+            finalCancelledAt,
+          ]
         );
+      }
 
-        return res.status(500).json({
+      return res.json({
+        ok: true,
+        message: 'Enquiries saved successfully.',
+      });
+    } catch (error) {
+      console.error('❌ Failed to save enquiries:', error);
+
+      return res.status(500).json({
+        ok: false,
+        message: 'Failed to save enquiries.',
+        details: error.message,
+      });
+    }
+  });
+
+  app.delete('/api/enquiries/:id', async (req, res) => {
+    try {
+      const { id } = req.params;
+
+      console.log('🗑️ Delete enquiry request:', id);
+
+      if (!id) {
+        return res.status(400).json({
           ok: false,
-          message:
-            'Failed to save enquiries.',
-          details:
-            error instanceof Error
-              ? error.message
-              : String(error),
+          message: 'Enquiry ID is required.',
         });
       }
-    }
-  );
 
-  /* =======================================================
-     DELETE ENQUIRY
-  ======================================================= */
-
-  app.delete(
-    '/api/enquiries/:id',
-    async (req, res) => {
-      try {
-        const { id } =
-          req.params;
-
-        if (!id) {
-          return res.status(400).json({
-            ok: false,
-            message:
-              'Enquiry ID is required.',
-          });
-        }
-
-        const existingResult =
-          await pool.query(
-            `
-              SELECT
-                id,
-                order_number,
-                customer_name,
-                status
-              FROM enquiries
-              WHERE id = $1
-              LIMIT 1
-            `,
-            [id]
-          );
-
-        if (
-          existingResult.rows.length ===
-          0
-        ) {
-          return res.status(404).json({
-            ok: false,
-            message:
-              'Enquiry not found.',
-            requestedId: id,
-          });
-        }
-
-        const deleteResult =
-          await pool.query(
-            `
-              DELETE FROM enquiries
-              WHERE id = $1
-              RETURNING id
-            `,
-            [id]
-          );
-
-        if (
-          deleteResult.rows.length ===
-          0
-        ) {
-          return res.status(404).json({
-            ok: false,
-            message:
-              'Enquiry could not be deleted.',
-            requestedId: id,
-          });
-        }
-
-        return res.status(200).json({
-          ok: true,
-          message:
-            'Enquiry deleted successfully.',
-          deletedId:
-            deleteResult.rows[0].id,
-        });
-      } catch (error) {
-        console.error(
-          '❌ Failed to delete enquiry:',
-          error
-        );
-
-        return res.status(500).json({
-          ok: false,
-          message:
-            'Failed to delete enquiry.',
-          details:
-            error instanceof Error
-              ? error.message
-              : String(error),
-        });
-      }
-    }
-  );
-
-  /* =======================================================
-     GET SINGLE ENQUIRY
-  ======================================================= */
-
-  app.get(
-    '/api/enquiries/:id',
-    async (req, res) => {
-      try {
-        const { id } =
-          req.params;
-
-        const result =
-          await pool.query(
-            `
-              SELECT
-                id,
-                order_number,
-                customer_name,
-                customer_phone,
-                customer_email,
-                items,
-                subtotal,
-                discount,
-                total,
-                status,
-                notes,
-                created_at,
-                status_updated_at,
-                source
-              FROM enquiries
-              WHERE id = $1
-              LIMIT 1
-            `,
-            [id]
-          );
-
-        if (
-          result.rows.length ===
-          0
-        ) {
-          return res.status(404).json({
-            ok: false,
-            message:
-              'Enquiry not found.',
-          });
-        }
-
-        const enquiry =
-          result.rows[0];
-
-        enquiry.subtotal =
-          toNumber(
-            enquiry.subtotal,
-            0
-          );
-
-        enquiry.discount =
-          toNumber(
-            enquiry.discount,
-            0
-          );
-
-        enquiry.total =
-          toNumber(
-            enquiry.total,
-            0
-          );
-
-        enquiry.items =
-          normalizeJsonArray(
-            enquiry.items
-          );
-
-        const normalizedEnquiry =
-          normalizeKeys(
-            enquiry
-          );
-
-        return res.json({
-          ok: true,
-          enquiry:
-            normalizedEnquiry,
-        });
-      } catch (error) {
-        console.error(
-          '❌ Failed to fetch enquiry for invoice:',
-          error
-        );
-
-        return res.status(500).json({
-          ok: false,
-          message:
-            'Failed to fetch enquiry for invoice.',
-          details:
-            error instanceof Error
-              ? error.message
-              : String(error),
-        });
-      }
-    }
-  );
-
-  /* =======================================================
-     UPDATE ENQUIRY STATUS
-  ======================================================= */
-
-  app.patch(
-    '/api/enquiries/:id/status',
-    async (req, res) => {
-      try {
-        const { id } =
-          req.params;
-
-        const { status } =
-          req.body;
-
-        const validStatuses = [
-          'New',
-          'Contacted',
-          'Confirmed',
-          'Paid',
-          'Preparing',
-          'Delivered',
-          'Cancelled',
-        ];
-
-        if (
-          !status ||
-          !validStatuses.includes(
+      // First check whether the enquiry exists
+      const existingResult = await pool.query(
+        `
+          SELECT
+            id,
+            order_number,
+            customer_name,
             status
-          )
-        ) {
-          return res.status(400).json({
-            ok: false,
-            message:
-              'Invalid enquiry status.',
-          });
-        }
+          FROM enquiries
+          WHERE id = $1
+          LIMIT 1
+        `,
+        [id]
+      );
 
-        const result =
-          await pool.query(
-            `
-              UPDATE enquiries
-              SET
-                status = $1,
-                status_updated_at = NOW()
-              WHERE id = $2
-              RETURNING *
-            `,
-            [status, id]
-          );
+      console.log(
+        '🔎 Enquiry found before delete:',
+        existingResult.rows
+      );
 
-        if (
-          result.rows.length ===
-          0
-        ) {
-          return res.status(404).json({
-            ok: false,
-            message:
-              'Enquiry not found.',
-          });
-        }
-
-        const updatedEnquiry =
-          normalizeKeys(
-            result.rows[0]
-          );
-
-        updatedEnquiry.subtotal =
-          toNumber(
-            updatedEnquiry.subtotal,
-            0
-          );
-
-        updatedEnquiry.discount =
-          toNumber(
-            updatedEnquiry.discount,
-            0
-          );
-
-        updatedEnquiry.total =
-          toNumber(
-            updatedEnquiry.total,
-            0
-          );
-
-        updatedEnquiry.items =
-          normalizeJsonArray(
-            updatedEnquiry.items
-          );
-
-        return res.json({
-          ok: true,
-          enquiry:
-            updatedEnquiry,
-        });
-      } catch (error) {
-        console.error(
-          '❌ Failed to update enquiry status:',
-          error
-        );
-
-        return res.status(500).json({
+      if (existingResult.rows.length === 0) {
+        return res.status(404).json({
           ok: false,
-          message:
-            'Failed to update enquiry status.',
-          details:
-            error instanceof Error
-              ? error.message
-              : String(error),
+          message: 'Enquiry not found.',
+          requestedId: id,
         });
       }
+
+      // Delete the enquiry
+      const deleteResult = await pool.query(
+        `
+          DELETE FROM enquiries
+          WHERE id = $1
+          RETURNING id
+        `,
+        [id]
+      );
+
+      console.log(
+        '✅ Deleted enquiry:',
+        deleteResult.rows
+      );
+
+      if (deleteResult.rows.length === 0) {
+        return res.status(404).json({
+          ok: false,
+          message: 'Enquiry could not be deleted.',
+          requestedId: id,
+        });
+      }
+
+      return res.status(200).json({
+        ok: true,
+        message: 'Enquiry deleted successfully.',
+        deletedId: deleteResult.rows[0].id,
+      });
+    } catch (error) {
+      console.error(
+        '❌ Failed to delete enquiry:',
+        error
+      );
+
+      return res.status(500).json({
+        ok: false,
+        message: 'Failed to delete enquiry.',
+        details:
+          error instanceof Error
+            ? error.message
+            : String(error),
+      });
     }
-  );
+  });
+
+  app.get('/api/enquiries/:id', async (req, res) => {
+    try {
+      const { id } = req.params;
+
+      console.log('📄 Fetching enquiry for invoice:', id);
+
+      const result = await pool.query(
+        `
+          SELECT
+            id,
+            order_number,
+            customer_name,
+            customer_phone,
+            customer_email,
+            items,
+            subtotal,
+            discount,
+            total,
+            status,
+            notes,
+            created_at,
+            status_updated_at,
+            source
+          FROM enquiries
+          WHERE id = $1
+          LIMIT 1
+        `,
+        [id]
+      );
+
+      if (result.rows.length === 0) {
+        return res.status(404).json({
+          ok: false,
+          message: 'Enquiry not found.',
+        });
+      }
+
+      const enquiry = result.rows[0];
+
+      enquiry.subtotal = toNumber(
+        enquiry.subtotal,
+        0
+      );
+
+      enquiry.discount = toNumber(
+        enquiry.discount,
+        0
+      );
+
+      enquiry.total = toNumber(
+        enquiry.total,
+        0
+      );
+
+      enquiry.items = normalizeJsonArray(
+        enquiry.items
+      );
+
+      const normalizedEnquiry =
+        normalizeKeys(enquiry);
+
+      console.log(
+        '✅ Invoice enquiry dates:',
+        {
+          id: normalizedEnquiry.id,
+          createdAt:
+            normalizedEnquiry.createdAt,
+          statusUpdatedAt:
+            normalizedEnquiry.statusUpdatedAt,
+        }
+      );
+
+      return res.json({
+        ok: true,
+        enquiry: normalizedEnquiry,
+      });
+    } catch (error) {
+      console.error(
+        '❌ Failed to fetch enquiry for invoice:',
+        error
+      );
+
+      return res.status(500).json({
+        ok: false,
+        message:
+          'Failed to fetch enquiry for invoice.',
+        details:
+          error instanceof Error
+            ? error.message
+            : String(error),
+      });
+    }
+  });
+
+  /* =======================================================
+    UPDATE ENQUIRY STATUS
+  ======================================================= */
+
+  app.patch('/api/enquiries/:id/status', async (req, res) => {
+    try {
+      const { id } = req.params;
+      const { status } = req.body;
+
+      console.log('🔄 Updating enquiry status:', {
+        id,
+        status,
+      });
+
+      const validStatuses = [
+        'New',
+        'Contacted',
+        'Confirmed',
+        'Paid',
+        'Preparing',
+        'Delivered',
+        'Cancelled',
+      ];
+
+      if (!status || !validStatuses.includes(status)) {
+        return res.status(400).json({
+          ok: false,
+          message: 'Invalid enquiry status.',
+        });
+      }
+
+      const result = await pool.query(
+        `
+          UPDATE enquiries
+          SET
+            status = $1,
+            status_updated_at = NOW()
+          WHERE id = $2
+          RETURNING *
+        `,
+        [status, id]
+      );
+
+      if (result.rows.length === 0) {
+        return res.status(404).json({
+          ok: false,
+          message: 'Enquiry not found.',
+        });
+      }
+
+      const updatedEnquiry = normalizeKeys(result.rows[0]);
+
+      updatedEnquiry.subtotal = toNumber(
+        updatedEnquiry.subtotal,
+        0
+      );
+
+      updatedEnquiry.discount = toNumber(
+        updatedEnquiry.discount,
+        0
+      );
+
+      updatedEnquiry.total = toNumber(
+        updatedEnquiry.total,
+        0
+      );
+
+      updatedEnquiry.items = normalizeJsonArray(
+        updatedEnquiry.items
+      );
+
+      console.log('✅ Enquiry status updated:', {
+        id: updatedEnquiry.id,
+        status: updatedEnquiry.status,
+        statusUpdatedAt: updatedEnquiry.statusUpdatedAt,
+      });
+
+      return res.json({
+        ok: true,
+        enquiry: updatedEnquiry,
+      });
+    } catch (error) {
+      console.error(
+        '❌ Failed to update enquiry status:',
+        error
+      );
+
+      return res.status(500).json({
+        ok: false,
+        message: 'Failed to update enquiry status.',
+        details:
+          error instanceof Error
+            ? error.message
+            : String(error),
+      });
+    }
+  });
+
 
   /* =======================================================
      INVOICES
   ======================================================= */
 
-  app.get(
-    '/api/invoices',
-    async (req, res) => {
-      try {
-        const result =
-          await pool.query(
-            `
-              SELECT *
-              FROM invoices
-              ORDER BY created_at DESC
-            `
-          );
+  app.get('/api/invoices', async (req, res) => {
+    try {
+      const result = await pool.query(
+        'SELECT * FROM invoices ORDER BY created_at DESC'
+      );
 
-        const invoices =
-          result.rows.map((row) => {
-            const normalized =
-              normalizeKeys(row);
+      const invoices = result.rows.map((row) => {
+        const normalized = normalizeKeys(row);
 
-            return {
-              id: safeString(
-                normalized.id
-              ),
+        return {
+          id: safeString(normalized.id),
 
-              invoiceNumber:
-                safeString(
-                  normalized.invoiceNumber,
-                  'N/A'
-                ),
+          invoiceNumber: safeString(
+            normalized.invoiceNumber,
+            'N/A'
+          ),
 
-              enquiryId:
-                normalized.enquiryId !==
-                  undefined &&
-                normalized.enquiryId !==
-                  null
-                  ? safeString(
-                      normalized.enquiryId
-                    )
-                  : null,
+          enquiryId:
+            normalized.enquiryId !== undefined &&
+            normalized.enquiryId !== null
+              ? safeString(normalized.enquiryId)
+              : null,
 
-              customerName:
-                safeString(
-                  normalized.customerName,
-                  'Walk-in Customer'
-                ),
+          customerName: safeString(
+            normalized.customerName,
+            'Walk-in Customer'
+          ),
 
-              customerPhone:
-                safeString(
-                  normalized.customerPhone
-                ),
+          customerPhone: safeString(
+            normalized.customerPhone
+          ),
 
-              customerEmail:
-                safeString(
-                  normalized.customerEmail
-                ),
+          customerEmail: safeString(
+            normalized.customerEmail
+          ),
 
-              customerAddress:
-                safeString(
-                  normalized.customerAddress
-                ),
+          customerAddress: safeString(
+            normalized.customerAddress
+          ),
 
-              items:
-                normalizeInvoiceItems(
-                  normalized.items
-                ),
+          items: normalizeInvoiceItems(
+            normalized.items
+          ),
 
-              subtotal:
-                toNumber(
-                  normalized.subtotal,
-                  0
-                ),
+          subtotal: toNumber(
+            normalized.subtotal,
+            0
+          ),
 
-              discount:
-                toNumber(
-                  normalized.discount,
-                  0
-                ),
+          discount: toNumber(
+            normalized.discount,
+            0
+          ),
 
-              shipping:
-                toNumber(
-                  normalized.shipping,
-                  0
-                ),
+          shipping: toNumber(
+            normalized.shipping,
+            0
+          ),
 
-              total:
-                toNumber(
-                  normalized.total,
-                  0
-                ),
+          total: toNumber(
+            normalized.total,
+            0
+          ),
 
-              status:
-                safeString(
-                  normalized.status,
-                  'Draft'
-                ),
+          status: safeString(
+            normalized.status,
+            'Draft'
+          ),
 
-              issueDate:
-                normalized.issueDate !==
-                  undefined &&
-                normalized.issueDate !==
-                  null
-                  ? safeString(
-                      normalized.issueDate
-                    )
-                  : null,
+          issueDate:
+            normalized.issueDate !== undefined &&
+            normalized.issueDate !== null
+              ? safeString(normalized.issueDate)
+              : null,
 
-              dueDate:
-                normalized.dueDate !==
-                  undefined &&
-                normalized.dueDate !==
-                  null
-                  ? safeString(
-                      normalized.dueDate
-                    )
-                  : null,
+          dueDate:
+            normalized.dueDate !== undefined &&
+            normalized.dueDate !== null
+              ? safeString(normalized.dueDate)
+              : null,
 
-              paymentMethod:
-                normalized.paymentMethod !==
-                  undefined &&
-                normalized.paymentMethod !==
-                  null
-                  ? safeString(
-                      normalized.paymentMethod
-                    )
-                  : null,
+          paymentMethod:
+            normalized.paymentMethod !== undefined &&
+            normalized.paymentMethod !== null
+              ? safeString(
+                  normalized.paymentMethod
+                )
+              : null,
 
-              createdAt:
-                normalized.createdAt !==
-                  undefined &&
-                normalized.createdAt !==
-                  null
-                  ? safeString(
-                      normalized.createdAt
-                    )
-                  : null,
-            };
-          });
+          createdAt:
+            normalized.createdAt !== undefined &&
+            normalized.createdAt !== null
+              ? safeString(normalized.createdAt)
+              : null,
+        };
+      });
 
-        return res.json(
-          invoices
-        );
-      } catch (error) {
-        console.error(
-          '❌ Failed to load invoices:',
-          error
-        );
+      console.log(
+        `✅ Loaded ${invoices.length} invoices`
+      );
 
-        return res.status(500).json({
-          ok: false,
-          message:
-            'Failed to load invoices.',
-          details:
-            error instanceof Error
-              ? error.message
-              : String(error),
-        });
-      }
+      return res.json(invoices);
+
+    } catch (error) {
+      console.error(
+        '❌ Failed to load invoices:',
+        error
+      );
+
+      return res.status(500).json({
+        ok: false,
+        message: 'Failed to load invoices.',
+        details:
+          error instanceof Error
+            ? error.message
+            : String(error),
+      });
     }
-  );
+  });
 
   app.post(
     '/api/invoices',
@@ -2532,6 +2447,7 @@ export function createApp() {
                 $8,$9,$10,$11,$12,$13,
                 $14,$15,$16,$17
               )
+
               ON CONFLICT (id)
               DO UPDATE SET
                 invoice_number =
@@ -2595,14 +2511,43 @@ export function createApp() {
 
         return res.status(500).json({
           ok: false,
+
           message:
             'Failed to save invoices.',
+
           details:
             error instanceof Error
               ? error.message
               : String(error),
         });
       }
+    }
+  );
+
+  /* =======================================================
+     CORS ERROR HANDLER
+  ======================================================= */
+
+  app.use(
+    (error, req, res, next) => {
+      if (
+        error &&
+        error.message ===
+          'Not allowed by CORS'
+      ) {
+        return res.status(403).json({
+          ok: false,
+
+          message:
+            'CORS origin is not allowed.',
+
+          origin:
+            req.headers.origin ||
+            null,
+        });
+      }
+
+      return next(error);
     }
   );
 
@@ -2619,8 +2564,10 @@ export function createApp() {
 
       return res.status(500).json({
         ok: false,
+
         message:
           'Internal server error.',
+
         details:
           error instanceof Error
             ? error.message
@@ -2654,6 +2601,12 @@ if (isDirectExecution) {
     process.env.PORT || 4004
   );
 
+  /*
+   * 0.0.0.0 is important when accessing
+   * the frontend/API from another device
+   * on the same Wi-Fi/hotspot.
+   */
+
   const host =
     process.env.HOST ||
     '0.0.0.0';
@@ -2663,50 +2616,40 @@ if (isDirectExecution) {
     host,
     () => {
       console.log('');
-
       console.log(
         '========================================'
       );
-
       console.log(
         '🌸 Meera Fashion API'
       );
-
       console.log(
         '========================================'
       );
-
       console.log(
         `🚀 Server: http://localhost:${port}`
       );
-
       console.log(
         `📡 Network: http://0.0.0.0:${port}`
       );
-
       console.log(
         `❤️ Health: http://localhost:${port}/api/health`
       );
-
       console.log(
         `🛍️ Products: http://localhost:${port}/api/products`
       );
-
       console.log(
         `📊 Analytics: http://localhost:${port}/api/analytics`
       );
-
       console.log(
         '========================================'
       );
-
       console.log('');
     }
   );
 
-  /* -------------------------------------------------------
-     GRACEFUL SHUTDOWN
-  ------------------------------------------------------- */
+  /*
+   * Graceful shutdown
+   */
 
   const shutdown = async () => {
     console.log(

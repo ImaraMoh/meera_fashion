@@ -1329,40 +1329,22 @@ export default function App() {
       )}
 
       <SelectionDrawer
-        isOpen={
-          isSelectionOpen
-        }
-        onClose={() =>
-          setIsSelectionOpen(false)
-        }
-        items={
-          selection
-        }
-        onUpdateQuantity={
-          handleUpdateSelectionQuantity
-        }
-        onRemoveItem={
-          handleRemoveSelectionItem
-        }
-        onClearSelection={
-          handleClearSelection
-        }
-        onRecordEnquiry={(
-          newEnquiry
-        ) => {
-          handleUpdateEnquiries([
+        isOpen={isSelectionOpen}
+        onClose={() => setIsSelectionOpen(false)}
+        items={selection}
+        onUpdateQuantity={handleUpdateSelectionQuantity}
+        onRemoveItem={handleRemoveSelectionItem}
+        onClearSelection={handleClearSelection}
+        onRecordEnquiry={async (newEnquiry) => {
+          await handleUpdateEnquiries([
             newEnquiry,
             ...enquiries,
           ]);
         }}
-        settings={
-          settings
-        }
+        settings={settings}
         onContinueShopping={() => {
           const gridElem =
-            document.getElementById(
-              'boutique-catalog'
-            );
+            document.getElementById('boutique-catalog');
 
           if (gridElem) {
             gridElem.scrollIntoView({

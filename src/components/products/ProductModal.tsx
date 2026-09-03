@@ -17,10 +17,7 @@ import {
   Plus,
 } from 'lucide-react';
 
-import {
-  Product,
-  ImageBackgroundMode,
-} from '../../types';
+import { Product } from '../../types';
 
 import {
   handleImageError,
@@ -52,19 +49,12 @@ export const ProductModal: React.FC<ProductModalProps> = ({
   isWishlisted,
   onOpenWhatsApp,
 }) => {
-  /*
-   * Important:
-   * Hooks must always run before conditional returns.
-   */
-
   const [activeImage, setActiveImage] = useState('');
   const [selectedBangleSize, setSelectedBangleSize] =
     useState('2.6');
 
   const [selectedVariant, setSelectedVariant] =
     useState<Record<string, string>>({});
-
-  const [quantity, setQuantity] = useState(1);
 
   const [copiedNotification, setCopiedNotification] =
     useState(false);
@@ -73,7 +63,7 @@ export const ProductModal: React.FC<ProductModalProps> = ({
     useState(false);
 
   /*
-   * Reset modal state whenever the product changes.
+   * Reset modal state whenever product changes.
    */
   useEffect(() => {
     if (!product) return;
@@ -88,12 +78,11 @@ export const ProductModal: React.FC<ProductModalProps> = ({
     );
 
     setSelectedVariant({});
-    setQuantity(1);
     setCopiedNotification(false);
   }, [product?.id]);
 
   /*
-   * Lock background scrolling while modal is open.
+   * Lock page scrolling while modal is open.
    */
   useEffect(() => {
     if (!product) return;
@@ -104,12 +93,13 @@ export const ProductModal: React.FC<ProductModalProps> = ({
     document.body.style.overflow = 'hidden';
 
     return () => {
-      document.body.style.overflow = previousOverflow;
+      document.body.style.overflow =
+        previousOverflow;
     };
   }, [product]);
 
   /*
-   * ESC key closes modal.
+   * ESC closes modal.
    */
   useEffect(() => {
     if (!product) return;
@@ -134,9 +124,7 @@ export const ProductModal: React.FC<ProductModalProps> = ({
   }, [product, onClose]);
 
   /*
-   * Gallery list.
-   *
-   * useMemo prevents rebuilding the gallery on every render.
+   * Product gallery.
    */
   const galleryList = useMemo(() => {
     if (!product) return [];
@@ -178,9 +166,7 @@ export const ProductModal: React.FC<ProductModalProps> = ({
             url: images.wearing,
           }
         : null,
-    ].filter(
-      Boolean
-    ) as {
+    ].filter(Boolean) as {
       label: string;
       url: string;
     }[];
@@ -188,8 +174,6 @@ export const ProductModal: React.FC<ProductModalProps> = ({
 
   /*
    * Matching products.
-   *
-   * Memoized so filtering doesn't happen on every render.
    */
   const matchingProducts = useMemo(() => {
     if (!product?.matchingProductIds?.length) {
@@ -212,7 +196,7 @@ export const ProductModal: React.FC<ProductModalProps> = ({
   ]);
 
   /*
-   * Main image optimization.
+   * Optimized main image.
    */
   const optimizedMainImage = useMemo(() => {
     if (!activeImage || !product) {
@@ -235,9 +219,7 @@ export const ProductModal: React.FC<ProductModalProps> = ({
   ]);
 
   /*
-   * Preload the main image.
-   *
-   * This starts downloading it as soon as the modal opens.
+   * Preload main image.
    */
   useEffect(() => {
     if (!optimizedMainImage) return;
@@ -253,45 +235,8 @@ export const ProductModal: React.FC<ProductModalProps> = ({
   }, [optimizedMainImage]);
 
   /*
-   * Preload the next gallery image AFTER
-   * the main image has loaded.
-   *
-   * This avoids downloading all images at once.
+   * Share product link.
    */
-  useEffect(() => {
-    if (
-      !mainImageLoaded ||
-      !activeImage ||
-      galleryList.length <= 1
-    ) {
-      return;
-    }
-
-    const currentIndex =
-      galleryList.findIndex(
-        (item) => item.url === activeImage
-      );
-
-    const nextItem =
-      galleryList[currentIndex + 1];
-
-    if (!nextItem) return;
-
-    const nextImage = new Image();
-
-    nextImage.src = getOptimizedImageUrl(
-      nextItem.url,
-      {
-        width: 750,
-        quality: 68,
-      }
-    );
-  }, [
-    mainImageLoaded,
-    activeImage,
-    galleryList,
-  ]);
-
   const handleShare = async () => {
     try {
       await navigator.clipboard.writeText(
@@ -310,11 +255,6 @@ export const ProductModal: React.FC<ProductModalProps> = ({
     }
   };
 
-  /*
-   * Don't render anything when no product is selected.
-   *
-   * Hooks are already declared above.
-   */
   if (!product) {
     return null;
   }
@@ -333,12 +273,17 @@ export const ProductModal: React.FC<ProductModalProps> = ({
   return (
     <div
       className="
-        fixed inset-0 z-50
+        fixed
+        inset-0
+        z-50
         overflow-y-auto
-        bg-black/60
-        backdrop-blur-sm
-        flex items-center justify-center
-        p-2 sm:p-4 lg:p-6
+        bg-black/70
+        backdrop-blur-xs
+        flex
+        items-center
+        justify-center
+        p-2
+        sm:p-4
         animate-fadeIn
       "
       role="dialog"
@@ -349,54 +294,106 @@ export const ProductModal: React.FC<ProductModalProps> = ({
         className="
           relative
           w-full
-          max-w-5xl
+          max-w-4xl
           bg-white
-          rounded-3xl
-          shadow-luxury-lg
+          rounded-2xl
+          sm:rounded-3xl
+          shadow-2xl
           overflow-hidden
-          border border-rose-100
+          border
+          border-rose-100
           max-h-[92vh]
-          flex flex-col
+          flex
+          flex-col
         "
       >
-        {/* Header */}
+        {/* =====================================================
+            HEADER
+        ====================================================== */}
         <div
           className="
-            sticky top-0 z-20
-            flex items-center justify-between
-            px-6 py-3.5
+            sticky
+            top-0
+            z-20
+            flex
+            items-center
+            justify-between
+            gap-2
+            px-4
+            py-2.5
+            sm:px-6
+            sm:py-3
             bg-white/95
             backdrop-blur-md
-            border-b border-rose-100
+            border-b
+            border-rose-100
+            shrink-0
           "
         >
-          <div className="flex items-center gap-2 min-w-0">
-            <span className="text-xs font-bold uppercase tracking-widest text-[#9E315A] truncate">
+          {/* Category */}
+          <div
+            className="
+              flex
+              items-center
+              gap-1.5
+              min-w-0
+              flex-1
+              pr-2
+            "
+          >
+            <span
+              className="
+                text-[10px]
+                sm:text-xs
+                font-bold
+                uppercase
+                tracking-widest
+                text-[#9E315A]
+                truncate
+              "
+            >
               {product.category}
             </span>
 
-            <span className="text-rose-300">
+            <span className="text-rose-300 shrink-0">
               •
             </span>
 
-            <span className="text-xs text-[#5A4550] truncate">
+            <span
+              className="
+                text-[10px]
+                sm:text-xs
+                text-[#5A4550]
+                truncate
+              "
+            >
               {product.subcategory}
             </span>
           </div>
 
-          <div className="flex items-center gap-2 shrink-0">
+          {/* Header Actions */}
+          <div
+            className="
+              flex
+              items-center
+              gap-1
+              shrink-0
+            "
+          >
             {/* Share */}
             <button
               type="button"
               onClick={handleShare}
               className="
-                p-2
+                p-1.5
+                sm:p-2
                 text-[#3E2F37]
                 hover:text-[#9E315A]
                 hover:bg-rose-50
                 rounded-full
                 transition-colors
                 relative
+                cursor-pointer
               "
               title="Copy Link"
               aria-label="Copy product link"
@@ -407,8 +404,8 @@ export const ProductModal: React.FC<ProductModalProps> = ({
                 <span
                   className="
                     absolute
-                    -bottom-7
                     right-0
+                    -bottom-7
                     text-[10px]
                     bg-[#241B20]
                     text-white
@@ -417,6 +414,7 @@ export const ProductModal: React.FC<ProductModalProps> = ({
                     rounded
                     shadow-sm
                     whitespace-nowrap
+                    z-50
                   "
                 >
                   Link copied!
@@ -431,9 +429,11 @@ export const ProductModal: React.FC<ProductModalProps> = ({
                 onToggleWishlist(product.id)
               }
               className={`
-                p-2
+                p-1.5
+                sm:p-2
                 rounded-full
                 transition-colors
+                cursor-pointer
                 ${
                   isWishlisted
                     ? 'text-[#9E315A] bg-rose-50'
@@ -453,7 +453,8 @@ export const ProductModal: React.FC<ProductModalProps> = ({
             >
               <Heart
                 className={`
-                  w-4 h-4
+                  w-4
+                  h-4
                   ${
                     isWishlisted
                       ? 'fill-[#9E315A]'
@@ -468,13 +469,15 @@ export const ProductModal: React.FC<ProductModalProps> = ({
               type="button"
               onClick={onClose}
               className="
-                p-2
+                p-1.5
+                sm:p-2
                 text-[#3E2F37]
                 hover:text-[#9E315A]
                 hover:bg-rose-50
                 rounded-full
                 transition-colors
-                ml-2
+                ml-1
+                cursor-pointer
               "
               aria-label="Close modal"
             >
@@ -483,64 +486,64 @@ export const ProductModal: React.FC<ProductModalProps> = ({
           </div>
         </div>
 
-        {/* Body */}
+        {/* =====================================================
+            BODY
+        ====================================================== */}
         <div
           className="
             overflow-y-auto
-            p-6 lg:p-8
+            overscroll-contain
+            p-4
+            sm:p-6
             grid
             grid-cols-1
             lg:grid-cols-12
-            gap-8
+            gap-6
+            items-start
           "
         >
-          {/* =========================
-              LEFT — IMAGE GALLERY
-          ========================== */}
-          <div className="lg:col-span-7 flex flex-col gap-4">
+          {/* ===================================================
+              LEFT — PRODUCT IMAGE & GALLERY
+          ==================================================== */}
+          <div
+            className="
+              lg:col-span-5
+              min-w-0
+              flex
+              flex-col
+              gap-3
+              lg:sticky
+              lg:top-2
+            "
+          >
             {/* Main Image */}
             <div
               className="
                 relative
-                aspect-[3/4]
-                sm:aspect-[4/5]
+                w-full
+                h-[260px]
+                sm:h-[320px]
+                lg:h-[360px]
                 rounded-2xl
                 overflow-hidden
-                border border-rose-200/80
+                border
+                border-rose-200/80
                 bg-[#FFF5F8]
               "
             >
-              {/* Loading placeholder */}
               {!mainImageLoaded && (
                 <div
                   className="
                     absolute
                     inset-0
+                    z-10
                     flex
                     items-center
                     justify-center
-                    bg-gradient-to-br
-                    from-[#FFF5F8]
-                    via-white
-                    to-[#FFF8FA]
+                    bg-white/80
                   "
                 >
-                  <div className="flex flex-col items-center gap-2">
-                    <div
-                      className="
-                        w-8 h-8
-                        rounded-full
-                        border-2
-                        border-rose-200
-                        border-t-[#9E315A]
-                        animate-spin
-                      "
-                    />
-
-                    <span className="text-[10px] text-[#8C5D6C]">
-                      Loading image...
-                    </span>
-                  </div>
+                  <div className="w-6 h-6 rounded-full border-2 border-rose-200 border-t-[#9E315A] animate-spin" />
                 </div>
               )}
 
@@ -559,16 +562,13 @@ export const ProductModal: React.FC<ProductModalProps> = ({
                   }
                   onError={(e) => {
                     setMainImageLoaded(true);
-
-                    handleImageError(
-                      e,
-                      fallbackType
-                    );
+                    handleImageError(e, fallbackType);
                   }}
                   className={`
+                    block
                     w-full
                     h-full
-                    object-cover
+                    object-contain
                     object-center
                     transition-opacity
                     duration-300
@@ -585,12 +585,12 @@ export const ProductModal: React.FC<ProductModalProps> = ({
               <div
                 className="
                   absolute
-                  top-4
-                  left-4
+                  top-3
+                  left-3
                   flex
                   flex-col
                   gap-1.5
-                  z-10
+                  z-20
                 "
               >
                 {product.isPreOrder && (
@@ -598,13 +598,14 @@ export const ProductModal: React.FC<ProductModalProps> = ({
                     className="
                       bg-[#241B20]
                       text-[#E8CFAF]
-                      text-xs
+                      text-[10px]
                       font-bold
-                      px-3 py-1
+                      px-2.5
+                      py-1
                       rounded-full
                       uppercase
                       tracking-wider
-                      shadow-sm
+                      shadow-xs
                     "
                   >
                     Pre-Order
@@ -616,11 +617,12 @@ export const ProductModal: React.FC<ProductModalProps> = ({
                     className="
                       bg-[#9E315A]
                       text-white
-                      text-xs
+                      text-[10px]
                       font-bold
-                      px-2.5 py-1
+                      px-2.5
+                      py-1
                       rounded-full
-                      shadow-sm
+                      shadow-xs
                     "
                   >
                     {product.discountPercentage}% OFF
@@ -637,8 +639,8 @@ export const ProductModal: React.FC<ProductModalProps> = ({
                   items-center
                   gap-2
                   overflow-x-auto
-                  pb-2
-                  scrollbar-thin
+                  pb-1
+                  no-scrollbar
                 "
               >
                 {galleryList.map(
@@ -651,28 +653,22 @@ export const ProductModal: React.FC<ProductModalProps> = ({
                         key={`${item.url}-${idx}`}
                         type="button"
                         onClick={() => {
-                          if (
-                            activeImage ===
-                            item.url
-                          ) {
-                            return;
-                          }
-
+                          if (activeImage === item.url) return;
                           setMainImageLoaded(false);
-                          setActiveImage(
-                            item.url
-                          );
+                          setActiveImage(item.url);
                         }}
                         className={`
-                          w-16 h-20
+                          w-14
+                          h-16
                           rounded-xl
                           overflow-hidden
                           border-2
                           shrink-0
                           transition-all
+                          cursor-pointer
                           ${
                             isActive
-                              ? 'border-[#9E315A] shadow-md scale-105'
+                              ? 'border-[#9E315A] shadow-sm scale-105'
                               : 'border-rose-200/70 opacity-70 hover:opacity-100'
                           }
                         `}
@@ -682,18 +678,14 @@ export const ProductModal: React.FC<ProductModalProps> = ({
                           src={getOptimizedImageUrl(
                             item.url,
                             {
-                              width: 160,
-                              quality: 58,
+                              width: 140,
+                              quality: 55,
                             }
                           )}
                           alt={`${product.name} ${item.label}`}
-                          width={160}
-                          height={200}
-                          loading={
-                            idx === 0
-                              ? 'eager'
-                              : 'lazy'
-                          }
+                          width={140}
+                          height={160}
+                          loading="lazy"
                           decoding="async"
                           referrerPolicy="no-referrer"
                           onError={(e) =>
@@ -702,11 +694,7 @@ export const ProductModal: React.FC<ProductModalProps> = ({
                               fallbackType
                             )
                           }
-                          className="
-                            w-full
-                            h-full
-                            object-cover
-                          "
+                          className="w-full h-full object-cover"
                         />
                       </button>
                     );
@@ -716,463 +704,363 @@ export const ProductModal: React.FC<ProductModalProps> = ({
             )}
           </div>
 
-          {/* =========================
-              RIGHT — PRODUCT DETAILS
-          ========================== */}
-          <div className="lg:col-span-5 flex flex-col justify-between">
-            <div>
-              {/* Availability */}
-              <div className="flex items-center justify-between gap-3 mb-2">
-                <span
-                  className={`
-                    text-xs
-                    font-semibold
-                    px-2.5 py-0.5
-                    rounded-full
-                    ${
-                      product.stockStatus ===
-                      'In Stock'
-                        ? 'bg-emerald-100 text-emerald-800'
-                        : product.stockStatus ===
-                          'Pre-Order'
-                        ? 'bg-purple-100 text-purple-900 font-bold'
-                        : product.stockStatus ===
-                          'Out of Stock'
-                        ? 'bg-gray-800 text-white font-bold'
-                        : product.stockStatus ===
-                          'Unavailable'
-                        ? 'bg-rose-900 text-rose-100 font-bold'
-                        : 'bg-amber-100 text-amber-800'
-                    }
-                  `}
-                >
-                  {product.stockStatus ===
-                  'Pre-Order'
-                    ? '⚡ Custom Pre-Order Available'
-                    : product.stockStatus ===
-                      'Out of Stock'
-                    ? '✕ Out of Stock'
-                    : product.stockStatus ===
-                      'Unavailable'
-                    ? '✕ Currently Unavailable'
-                    : `✓ ${product.stockStatus} (${product.stockQuantity} ready)`}
-                </span>
+          {/* ===================================================
+              RIGHT — PRODUCT DETAILS & ACTIONS
+          ==================================================== */}
+          <div
+            className="
+              lg:col-span-7
+              min-w-0
+              flex
+              flex-col
+            "
+          >
+            {/* Availability & Ref */}
+            <div
+              className="
+                flex
+                items-center
+                justify-between
+                gap-2
+                mb-2
+              "
+            >
+              <span
+                className={`
+                  text-[10px]
+                  sm:text-xs
+                  font-semibold
+                  px-2.5
+                  py-0.5
+                  rounded-full
+                  ${
+                    product.stockStatus === 'In Stock'
+                      ? 'bg-emerald-100 text-emerald-800'
+                      : product.stockStatus === 'Pre-Order'
+                      ? 'bg-purple-100 text-purple-900 font-bold'
+                      : 'bg-amber-100 text-amber-800'
+                  }
+                `}
+              >
+                {product.stockStatus === 'Pre-Order'
+                  ? '⚡ Custom Pre-Order Available'
+                  : product.stockStatus === 'Out of Stock'
+                  ? '✕ Out of Stock'
+                  : `✓ ${product.stockStatus} (${product.stockQuantity} ready)`}
+              </span>
 
-                <span className="text-xs text-[#8C5D6C] font-mono truncate">
-                  Ref: {product.id}
-                </span>
-              </div>
+              <span className="text-[10px] text-rose-300 font-mono">
+                Ref: {product.id}
+              </span>
+            </div>
 
-              {/* Unavailability */}
-              {product.unavailabilityReason && (
-                <div
-                  className="
-                    mb-3
-                    p-2.5
-                    rounded-xl
-                    bg-amber-50
-                    border border-amber-200
-                    text-xs
-                    text-amber-900
-                    font-medium
-                  "
-                >
-                  <strong>
-                    Status Notice:
-                  </strong>{' '}
-                  {product.unavailabilityReason}
-                </div>
-              )}
+            {/* Title */}
+            <h1
+              className="
+                text-xl
+                sm:text-2xl
+                font-serif
+                font-bold
+                text-[#241B20]
+                mb-1.5
+                leading-tight
+              "
+            >
+              {product.name}
+            </h1>
 
-              {/* Title */}
-              <h2
+            {/* Price */}
+            <div
+              className="
+                flex
+                items-center
+                gap-2.5
+                mb-3
+                flex-wrap
+              "
+            >
+              <span
                 className="
                   text-2xl
                   sm:text-3xl
                   font-serif
                   font-bold
-                  text-[#241B20]
-                  mb-2
-                  leading-snug
+                  text-[#9E315A]
                 "
               >
-                {product.name}
-              </h2>
+                £{product.price}
+              </span>
 
-              {/* Price */}
-              <div className="flex items-baseline gap-3 mb-4 flex-wrap">
-                <span className="text-3xl font-serif font-bold text-[#9E315A]">
-                  £{product.price}
+              {product.originalPrice ? (
+                <span
+                  className="
+                    text-base
+                    text-rose-300
+                    line-through
+                    font-light
+                  "
+                >
+                  £{product.originalPrice}
                 </span>
+              ) : null}
 
-                {product.originalPrice ? (
-                  <span className="text-lg text-[#8C5D6C] line-through font-light">
-                    £{product.originalPrice}
-                  </span>
-                ) : null}
-
-                {product.discountPercentage ? (
-                  <span
-                    className="
-                      text-xs
-                      font-bold
-                      text-[#9E315A]
-                      bg-rose-50
-                      border border-rose-200
-                      px-2 py-0.5
-                      rounded
-                    "
-                  >
-                    Save £
-                    {(
-                      product.originalPrice! -
-                      product.price
-                    ).toFixed(2)}{' '}
-                    (
-                    {
-                      product.discountPercentage
-                    }
-                    %)
-                  </span>
-                ) : null}
-              </div>
-
-              {/* Description */}
-              <p className="text-sm text-[#5A4550] leading-relaxed mb-6">
-                {product.description}
-              </p>
-
-              {/* Material / Specs */}
-              <div
-                className="
-                  bg-[#FFF8FA]
-                  p-3.5
-                  rounded-2xl
-                  border border-rose-100
-                  text-xs
-                  space-y-2
-                  mb-6
-                "
-              >
-                <div className="flex justify-between gap-4">
-                  <span className="text-[#8C5D6C] font-medium">
-                    Fabric / Material:
-                  </span>
-
-                  <span className="font-semibold text-[#241B20] text-right">
-                    {product.material ||
-                      'Not specified'}
-                  </span>
-                </div>
-
-                <div className="flex justify-between gap-4">
-                  <span className="text-[#8C5D6C] font-medium">
-                    Primary Colour:
-                  </span>
-
-                  <span className="font-semibold text-[#241B20]">
-                    {product.color ||
-                      'Not specified'}
-                  </span>
-                </div>
-
-                <div className="flex justify-between gap-4">
-                  <span className="text-[#8C5D6C] font-medium">
-                    Collection:
-                  </span>
-
-                  <span className="font-semibold text-[#9E315A]">
-                    {product.subcategory ||
-                      'General'}
-                  </span>
-                </div>
-              </div>
-
-              {/* Bangle Size */}
-              {product.bangleSizes &&
-                product.bangleSizes.length > 0 && (
-                  <div
-                    className="
-                      mb-6
-                      p-4
-                      rounded-2xl
-                      bg-gradient-to-r
-                      from-rose-50/80
-                      to-pink-50/50
-                      border border-rose-200/80
-                    "
-                  >
-                    <div className="flex items-center justify-between mb-2 gap-3">
-                      <span
-                        className="
-                          text-xs
-                          font-bold
-                          text-[#9E315A]
-                          uppercase
-                          tracking-wider
-                          flex
-                          items-center
-                          gap-1.5
-                        "
-                      >
-                        <Ruler className="w-3.5 h-3.5" />
-                        Select Bangle Size:
-                      </span>
-
-                      <span
-                        className="
-                          text-xs
-                          font-bold
-                          text-[#241B20]
-                          bg-white
-                          px-2
-                          py-0.5
-                          rounded
-                          shadow-2xs
-                        "
-                      >
-                        Selected:{' '}
-                        {selectedBangleSize}
-                      </span>
-                    </div>
-
-                    <div className="grid grid-cols-5 gap-2">
-                      {product.bangleSizes.map(
-                        (size) => (
-                          <button
-                            key={size}
-                            type="button"
-                            onClick={() =>
-                              setSelectedBangleSize(
-                                size
-                              )
-                            }
-                            className={`
-                              py-2
-                              rounded-xl
-                              text-xs
-                              font-bold
-                              border
-                              transition-all
-                              ${
-                                selectedBangleSize ===
-                                size
-                                  ? 'bg-[#9E315A] text-white border-[#9E315A] shadow-sm'
-                                  : 'bg-white text-[#3E2F37] border-rose-200 hover:border-rose-300'
-                              }
-                            `}
-                          >
-                            {size}
-                          </button>
-                        )
-                      )}
-                    </div>
-
-                    <p className="text-[11px] text-[#8C5D6C] mt-2 font-light">
-                      *Standard Indian bangle
-                      diameter. Included in
-                      WhatsApp enquiry message.
-                    </p>
-                  </div>
-                )}
-
-              {/* Custom Variants */}
-              {product.variants?.map(
-                (variant) => (
-                  <div
-                    key={variant.id}
-                    className="mb-4"
-                  >
-                    <label
-                      className="
-                        text-xs
-                        font-bold
-                        text-[#9E315A]
-                        uppercase
-                        tracking-wider
-                        block
-                        mb-1.5
-                      "
-                    >
-                      {variant.name}
-                    </label>
-
-                    <div className="flex flex-wrap gap-2">
-                      {variant.options.map(
-                        (option) => (
-                          <button
-                            key={option}
-                            type="button"
-                            onClick={() =>
-                              setSelectedVariant(
-                                (previous) => ({
-                                  ...previous,
-                                  [variant.name]:
-                                    option,
-                                })
-                              )
-                            }
-                            className={`
-                              px-3
-                              py-1.5
-                              rounded-xl
-                              text-xs
-                              font-semibold
-                              border
-                              transition-all
-                              ${
-                                selectedVariant[
-                                  variant.name
-                                ] === option
-                                  ? 'bg-[#9E315A] text-white border-[#9E315A]'
-                                  : 'bg-white text-[#3E2F37] border-rose-200'
-                              }
-                            `}
-                          >
-                            {option}
-                          </button>
-                        )
-                      )}
-                    </div>
-                  </div>
-                )
-              )}
-
-              {/* Matching Products */}
-              {matchingProducts.length > 0 && (
-                <div className="mb-6 pt-4 border-t border-rose-100">
-                  <span
-                    className="
-                      text-xs
-                      font-bold
-                      text-[#9E315A]
-                      uppercase
-                      tracking-wider
-                      flex
-                      items-center
-                      gap-1.5
-                      mb-2.5
-                    "
-                  >
-                    <Sparkles className="w-3.5 h-3.5 text-[#C94F7C]" />
-                    Complete the Look:
-                  </span>
-
-                  <div className="space-y-2">
-                    {matchingProducts.map(
-                      (match) => (
-                        <div
-                          key={match.id}
-                          className="
-                            flex
-                            items-center
-                            justify-between
-                            p-2.5
-                            rounded-xl
-                            bg-white
-                            border border-rose-100
-                            shadow-2xs
-                            hover:border-rose-300
-                            transition-colors
-                          "
-                        >
-                          <div className="flex items-center gap-3 min-w-0">
-                            <img
-                              src={getOptimizedImageUrl(
-                                match.images?.main,
-                                {
-                                  width: 120,
-                                  quality: 55,
-                                  fallbackType:
-                                    match.category ===
-                                    'jewellery'
-                                      ? 'jewellery'
-                                      : 'saree',
-                                }
-                              )}
-                              alt={match.name}
-                              width={40}
-                              height={40}
-                              loading="lazy"
-                              decoding="async"
-                              referrerPolicy="no-referrer"
-                              onError={(e) =>
-                                handleImageError(
-                                  e,
-                                  match.category ===
-                                    'jewellery'
-                                    ? 'jewellery'
-                                    : 'saree'
-                                )
-                              }
-                              className="
-                                w-10
-                                h-10
-                                rounded-lg
-                                object-cover
-                                shrink-0
-                              "
-                            />
-
-                            <div className="min-w-0">
-                              <p className="text-xs font-bold text-[#241B20] line-clamp-1">
-                                {match.name}
-                              </p>
-
-                              <p className="text-[11px] font-semibold text-[#9E315A]">
-                                £{match.price}
-                              </p>
-                            </div>
-                          </div>
-
-                          <button
-                            type="button"
-                            onClick={() =>
-                              onAddToSelection(
-                                match
-                              )
-                            }
-                            className="
-                              text-xs
-                              flex
-                              items-center
-                              gap-1
-                              bg-rose-50
-                              hover:bg-[#9E315A]
-                              text-[#9E315A]
-                              hover:text-white
-                              px-2.5
-                              py-1.5
-                              rounded-lg
-                              font-semibold
-                              border border-rose-200
-                              transition-colors
-                              shrink-0
-                              ml-2
-                            "
-                          >
-                            <Plus className="w-3 h-3" />
-                            <span>Add Match</span>
-                          </button>
-                        </div>
-                      )
-                    )}
-                  </div>
-                </div>
-              )}
+              {product.discountPercentage ? (
+                <span
+                  className="
+                    text-[10px]
+                    font-bold
+                    text-[#9E315A]
+                    bg-rose-50
+                    border
+                    border-rose-200
+                    px-2
+                    py-0.5
+                    rounded
+                  "
+                >
+                  Save £
+                  {(
+                    product.originalPrice! -
+                    product.price
+                  ).toFixed(2)}{' '}
+                  ({product.discountPercentage}%)
+                </span>
+              ) : null}
             </div>
 
-            {/* Actions */}
-            <div
+            {/* Description */}
+            <p
               className="
-                pt-6
-                border-t
-                border-rose-200/80
-                space-y-3
+                text-xs
+                sm:text-sm
+                text-[#5A4550]
+                leading-relaxed
+                mb-3.5
               "
             >
-              <div className="flex items-center gap-3">
-                {/* Add Selection */}
+              {product.description}
+            </p>
+
+            {/* Material & Specs */}
+            <div
+              className="
+                bg-[#FFF8FA]
+                p-3
+                rounded-xl
+                border
+                border-rose-100
+                text-xs
+                space-y-1.5
+                mb-3.5
+              "
+            >
+              <div className="flex justify-between">
+                <span className="text-[#8C5D6C] font-medium">Fabric / Material:</span>
+                <span className="font-semibold text-[#241B20] text-right">
+                  {product.material || 'Not specified'}
+                </span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-[#8C5D6C] font-medium">Primary Colour:</span>
+                <span className="font-semibold text-[#241B20] text-right">
+                  {product.color || 'Not specified'}
+                </span>
+              </div>
+            </div>
+
+            {/* Bangle Size selector */}
+            {product.bangleSizes &&
+              product.bangleSizes.length > 0 && (
+                <div
+                  className="
+                    mb-3.5
+                    p-3
+                    rounded-xl
+                    bg-rose-50/70
+                    border
+                    border-rose-200/80
+                  "
+                >
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-xs font-bold text-[#9E315A] uppercase tracking-wider flex items-center gap-1.5">
+                      <Ruler className="w-3.5 h-3.5" />
+                      Select Bangle Size:
+                    </span>
+                    <span className="text-xs font-bold text-[#241B20] bg-white px-2 py-0.5 rounded shadow-xs">
+                      {selectedBangleSize}
+                    </span>
+                  </div>
+                  <div className="grid grid-cols-5 gap-1.5">
+                    {product.bangleSizes.map((size) => (
+                      <button
+                        key={size}
+                        type="button"
+                        onClick={() => setSelectedBangleSize(size)}
+                        className={`
+                          py-1.5
+                          rounded-lg
+                          text-xs
+                          font-bold
+                          border
+                          transition-all
+                          cursor-pointer
+                          ${
+                            selectedBangleSize === size
+                              ? 'bg-[#9E315A] text-white border-[#9E315A] shadow-xs'
+                              : 'bg-white text-[#3E2F37] border-rose-200 hover:border-rose-300'
+                          }
+                        `}
+                      >
+                        {size}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+            {/* Custom Variants */}
+            {product.variants?.map((variant) => (
+              <div key={variant.id} className="mb-3.5">
+                <label className="text-xs font-bold text-[#9E315A] uppercase tracking-wider block mb-1.5">
+                  {variant.name}
+                </label>
+                <div className="flex flex-wrap gap-1.5">
+                  {variant.options.map((option) => (
+                    <button
+                      key={option}
+                      type="button"
+                      onClick={() =>
+                        setSelectedVariant((prev) => ({
+                          ...prev,
+                          [variant.name]: option,
+                        }))
+                      }
+                      className={`
+                        px-3
+                        py-1.5
+                        rounded-lg
+                        text-xs
+                        font-semibold
+                        border
+                        transition-all
+                        cursor-pointer
+                        ${
+                          selectedVariant[variant.name] === option
+                            ? 'bg-[#9E315A] text-white border-[#9E315A]'
+                            : 'bg-white text-[#3E2F37] border-rose-200 hover:border-rose-300'
+                        }
+                      `}
+                    >
+                      {option}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            ))}
+
+            {/* Complete the Look (Matching products) */}
+            {matchingProducts.length > 0 && (
+              <div className="mb-3.5 pt-3 border-t border-rose-100">
+                <span className="text-xs font-bold text-[#9E315A] uppercase tracking-wider flex items-center gap-1.5 mb-2">
+                  <Sparkles className="w-3.5 h-3.5 text-[#C94F7C]" />
+                  Complete the Look:
+                </span>
+                <div className="space-y-1.5">
+                  {matchingProducts.map((match) => (
+                    <div
+                      key={match.id}
+                      className="
+                        flex
+                        items-center
+                        justify-between
+                        gap-2
+                        p-2
+                        rounded-xl
+                        bg-white
+                        border
+                        border-rose-100
+                        shadow-2xs
+                      "
+                    >
+                      <div className="flex items-center gap-2 min-w-0 flex-1">
+                        <img
+                          src={getOptimizedImageUrl(
+                            match.images?.main,
+                            {
+                              width: 100,
+                              quality: 50,
+                              fallbackType:
+                                match.category === 'jewellery'
+                                  ? 'jewellery'
+                                  : 'saree',
+                            }
+                          )}
+                          alt={match.name}
+                          width={36}
+                          height={36}
+                          className="w-9 h-9 rounded-lg object-cover shrink-0"
+                        />
+                        <div className="min-w-0">
+                          <p className="text-xs font-bold text-[#241B20] truncate">
+                            {match.name}
+                          </p>
+                          <p className="text-[11px] font-semibold text-[#9E315A]">
+                            £{match.price}
+                          </p>
+                        </div>
+                      </div>
+
+                      <button
+                        type="button"
+                        onClick={() => onAddToSelection(match)}
+                        className="
+                          inline-flex
+                          items-center
+                          gap-1
+                          bg-rose-50
+                          hover:bg-[#9E315A]
+                          text-[#9E315A]
+                          hover:text-white
+                          px-2.5
+                          py-1.5
+                          rounded-lg
+                          font-semibold
+                          text-xs
+                          border
+                          border-rose-200
+                          transition-colors
+                          cursor-pointer
+                          shrink-0
+                        "
+                      >
+                        <Plus className="w-3 h-3" />
+                        <span>Add</span>
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Action Buttons */}
+            <div
+              className="
+                mt-2
+                pt-3
+                border-t
+                border-rose-200/80
+                space-y-2.5
+              "
+            >
+              <div
+                className="
+                  flex
+                  flex-col
+                  sm:flex-row
+                  gap-2.5
+                "
+              >
+                {/* Add to Selection */}
                 <button
                   type="button"
                   onClick={() =>
@@ -1184,24 +1072,25 @@ export const ProductModal: React.FC<ProductModalProps> = ({
                   disabled={isUnavailable}
                   className={`
                     flex-1
-                    flex
+                    inline-flex
                     items-center
                     justify-center
                     gap-2
-                    py-3.5
+                    px-4
+                    py-3
                     rounded-xl
                     font-semibold
-                    text-sm
+                    text-xs
+                    sm:text-sm
                     transition-all
                     ${
                       isUnavailable
                         ? 'bg-gray-100 text-gray-400 cursor-not-allowed border border-gray-200'
-                        : 'bg-gradient-to-r from-[#9E315A] to-[#C94F7C] hover:brightness-110 text-white shadow-luxury cursor-pointer'
+                        : 'bg-gradient-to-r from-[#9E315A] to-[#C94F7C] hover:brightness-110 text-white shadow-md cursor-pointer'
                     }
                   `}
                 >
-                  <ShoppingBag className="w-4 h-4" />
-
+                  <ShoppingBag className="w-4 h-4 shrink-0" />
                   <span>
                     {isUnavailable
                       ? 'Currently Unavailable'
@@ -1209,7 +1098,7 @@ export const ProductModal: React.FC<ProductModalProps> = ({
                   </span>
                 </button>
 
-                {/* WhatsApp */}
+                {/* WhatsApp Enquiry */}
                 <button
                   type="button"
                   onClick={() =>
@@ -1220,35 +1109,34 @@ export const ProductModal: React.FC<ProductModalProps> = ({
                   }
                   className="
                     flex-1
-                    flex
+                    inline-flex
                     items-center
                     justify-center
                     gap-2
-                    bg-[#25D366]
-                    hover:bg-[#20ba59]
-                    text-white
-                    py-3.5
+                    px-4
+                    py-3
                     rounded-xl
                     font-bold
-                    text-sm
-                    shadow-sm
+                    text-xs
+                    sm:text-sm
+                    bg-[#25D366]
+                    hover:bg-[#20BA59]
+                    text-white
+                    shadow-md
                     transition-all
                     cursor-pointer
                   "
                 >
-                  <MessageCircle className="w-4 h-4 fill-white" />
-
+                  <MessageCircle className="w-4 h-4 shrink-0 fill-white" />
                   <span>
                     {isUnavailable
-                      ? 'Enquire Restock on WhatsApp'
-                      : product.isPreOrder
-                      ? 'Pre-Order on WhatsApp'
+                      ? 'Enquire Restock'
                       : 'Enquire on WhatsApp'}
                   </span>
                 </button>
               </div>
 
-              {/* Trust */}
+              {/* Trust Information */}
               <div
                 className="
                   grid
@@ -1256,28 +1144,21 @@ export const ProductModal: React.FC<ProductModalProps> = ({
                   gap-2
                   text-[11px]
                   text-[#5A4550]
-                  pt-2
+                  pt-1
                 "
               >
                 <div className="flex items-center gap-1.5">
-                  <Truck className="w-3.5 h-3.5 text-[#C94F7C]" />
-
-                  <span>
-                    UK Royal Mail Tracked
-                    Dispatch
-                  </span>
+                  <Truck className="w-3.5 h-3.5 text-[#C94F7C] shrink-0" />
+                  <span>UK Royal Mail Tracked Dispatch</span>
                 </div>
 
                 <div className="flex items-center gap-1.5">
-                  <Shield className="w-3.5 h-3.5 text-[#C94F7C]" />
-
-                  <span>
-                    100% Quality & Fit
-                    Guarantee
-                  </span>
+                  <Shield className="w-3.5 h-3.5 text-[#C94F7C] shrink-0" />
+                  <span>100% Quality & Fit Guarantee</span>
                 </div>
               </div>
             </div>
+
           </div>
         </div>
       </div>

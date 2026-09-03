@@ -33,8 +33,13 @@ export const PerformanceShowcase: React.FC<
    * ============================================================
    * CURRENCY
    * ============================================================
+   * Meera Fashion uses GBP (£).
+   *
+   * This showcase intentionally uses GBP regardless of whether
+   * currencyCode is missing or incorrectly configured in settings.
    */
-  const currencyCode = settings?.currencyCode || 'LKR';
+  const currencyCode = 'GBP';
+  const currencySymbol = '£';
 
   const formatCurrency = (
     value: number | string | undefined | null
@@ -46,15 +51,21 @@ export const PerformanceShowcase: React.FC<
     }
 
     try {
-      return new Intl.NumberFormat(undefined, {
+      return new Intl.NumberFormat('en-GB', {
         style: 'currency',
         currency: currencyCode,
+        currencyDisplay: 'symbol',
+        minimumFractionDigits: 2,
         maximumFractionDigits: 2,
       }).format(numericValue);
     } catch {
-      return `${
-        settings?.currencySymbol || currencyCode
-      } ${numericValue.toLocaleString()}`;
+      return `${currencySymbol}${numericValue.toLocaleString(
+        'en-GB',
+        {
+          minimumFractionDigits: 2,
+          maximumFractionDigits: 2,
+        }
+      )}`;
     }
   };
 
@@ -73,9 +84,11 @@ export const PerformanceShowcase: React.FC<
   const price = Number(product?.price || 0);
 
   const originalPrice = Number(
-    (product as Product & {
-      originalPrice?: number | string;
-    })?.originalPrice || 0
+    (
+      product as Product & {
+        originalPrice?: number | string;
+      }
+    )?.originalPrice || 0
   );
 
   /**
@@ -235,7 +248,8 @@ export const PerformanceShowcase: React.FC<
       if (product?.name) {
         items.push(
           `Authentic ${product.name} from ${
-            settings?.brandName || 'Meera Fashion'
+            settings?.brandName ||
+            'Meera Fashion'
           }`
         );
       }
@@ -325,6 +339,7 @@ export const PerformanceShowcase: React.FC<
           </div>
 
           {/* Category */}
+
           <div className="shrink-0">
 
             <span className="inline-flex rounded-full border border-rose-200 bg-white/80 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-widest text-[#8C5D6C] shadow-sm sm:px-3 sm:py-1.5 sm:text-xs">
@@ -393,14 +408,17 @@ export const PerformanceShowcase: React.FC<
                 )}
 
                 {/* Image overlay */}
+
                 <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/35 via-transparent to-black/10" />
 
                 {/* Category badge */}
+
                 <div className="absolute left-2.5 top-2.5 rounded-full border border-white/20 bg-black/45 px-2.5 py-1 text-[9px] font-bold uppercase tracking-wider text-white backdrop-blur-md sm:left-4 sm:top-4 sm:px-3.5 sm:py-1.5 sm:text-xs">
                   Performance Collection
                 </div>
 
                 {/* Discount */}
+
                 {discountPercentage > 0 &&
                   savings > 0 && (
                     <div className="absolute bottom-2.5 right-2.5 rounded-lg bg-gradient-to-r from-[#9E315A] to-[#C94F7C] px-2.5 py-1 text-[10px] font-bold text-white shadow-md sm:bottom-4 sm:right-4 sm:rounded-xl sm:px-3 sm:py-1.5 sm:text-xs">
@@ -409,6 +427,7 @@ export const PerformanceShowcase: React.FC<
                   )}
 
                 {/* Mobile product name overlay */}
+
                 <div className="absolute bottom-3 left-3 max-w-[72%] sm:hidden">
 
                   <p className="line-clamp-2 font-serif text-lg font-bold leading-tight text-white drop-shadow-md">
@@ -570,7 +589,9 @@ export const PerformanceShowcase: React.FC<
               <button
                 type="button"
                 onClick={() =>
-                  onOpenWhatsAppForProduct(product)
+                  onOpenWhatsAppForProduct(
+                    product
+                  )
                 }
                 className="mt-2 flex min-h-10 w-full items-center justify-center gap-1.5 rounded-lg bg-[#25D366] px-4 py-2.5 text-[11px] font-bold text-white shadow-sm transition-all hover:bg-[#20ba59] sm:mt-3 sm:gap-2 sm:rounded-xl sm:py-3 sm:text-sm"
               >

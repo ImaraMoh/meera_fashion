@@ -30,7 +30,7 @@ interface ProductCardProps {
 
   /**
    * Currency code is the source of truth.
-   * Example: GBP, USD, EUR, LKR
+   * Example: GBP, USD, EUR
    */
   currencyCode?: string;
 };

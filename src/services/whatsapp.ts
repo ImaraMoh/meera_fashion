@@ -111,7 +111,39 @@ export const getWhatsAppLink = (whatsappNumber: string, message: string): string
   return `https://wa.me/${cleanNumber}?text=${encodedText}`;
 };
 
-export const openWhatsAppChat = (whatsappNumber: string, message: string) => {
-  const link = getWhatsAppLink(whatsappNumber, message);
-  window.open(link, '_blank', 'noopener,noreferrer');
+export const openWhatsAppChat = (
+  whatsappNumber: string,
+  message: string
+) => {
+  const link = getWhatsAppLink(
+    whatsappNumber,
+    message
+  );
+
+  /*
+   * Mobile browsers are more likely to block
+   * window.open() after an async operation.
+   *
+   * Use direct navigation on mobile so the
+   * WhatsApp deep link is handled by the OS.
+   */
+  const isMobile =
+    /Android|iPhone|iPad|iPod/i.test(
+      navigator.userAgent
+    );
+
+  if (isMobile) {
+    window.location.href = link;
+    return;
+  }
+
+  /*
+   * Desktop:
+   * Keep opening WhatsApp in a new tab.
+   */
+  window.open(
+    link,
+    '_blank',
+    'noopener,noreferrer'
+  );
 };

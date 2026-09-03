@@ -786,18 +786,18 @@ export const ProductCard: React.FC<ProductCardProps> = ({
 
           {/* =====================================================
               ACTION BUTTONS
-              Separate row so price can NEVER hide the buttons.
+              Two centered buttons on desktop.
           ====================================================== */}
           <div
             className="
-              grid
-              grid-cols-2
-              gap-1.5
-              sm:flex
-              sm:items-center
-              sm:justify-end
               mt-2
               sm:mt-2.5
+              flex
+              items-center
+              justify-center
+              gap-1.5
+              sm:gap-2
+              w-full
             "
           >
             {/* Add To Selection */}
@@ -812,9 +812,11 @@ export const ProductCard: React.FC<ProductCardProps> = ({
               }}
               disabled={isUnavailable}
               className={`
+                flex-1
+                sm:flex-none
+                sm:w-[120px]
                 min-w-0
                 h-9
-                sm:h-9
                 rounded-lg
                 sm:rounded-xl
                 border
@@ -849,25 +851,12 @@ export const ProductCard: React.FC<ProductCardProps> = ({
                 "
               />
 
-              {/* Mobile short label */}
               <span
                 className="
                   text-[9px]
-                  sm:hidden
+                  sm:text-[10px]
                   font-semibold
                   truncate
-                "
-              >
-                Select
-              </span>
-
-              {/* Desktop label */}
-              <span
-                className="
-                  hidden
-                  sm:inline
-                  text-[10px]
-                  font-semibold
                 "
               >
                 Select
@@ -885,9 +874,11 @@ export const ProductCard: React.FC<ProductCardProps> = ({
                 );
               }}
               className="
+                flex-1
+                sm:flex-none
+                sm:w-[120px]
                 min-w-0
                 h-9
-                sm:h-9
                 rounded-lg
                 sm:rounded-xl
                 bg-[#25D366]
@@ -917,20 +908,9 @@ export const ProductCard: React.FC<ProductCardProps> = ({
               <span
                 className="
                   text-[9px]
-                  sm:hidden
+                  sm:text-[10px]
                   font-semibold
                   truncate
-                "
-              >
-                WhatsApp
-              </span>
-
-              <span
-                className="
-                  hidden
-                  sm:inline
-                  text-[10px]
-                  font-semibold
                 "
               >
                 WhatsApp

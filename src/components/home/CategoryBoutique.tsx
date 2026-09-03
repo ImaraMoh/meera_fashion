@@ -103,7 +103,7 @@ const categoryMatches = (
   // Common singular/plural variations
   const aliases: Record<string, string[]> = {
     sarees: ['saree', 'sarees'],
-    jewellery: ['jewellery', 'jewelry', 'jewelleries', 'jewelry'],
+    jewellery: ['jewellery', 'jewelry', 'jewelleries'],
     performance: [
       'performance',
       'performances',
@@ -296,68 +296,104 @@ export const CategoryBoutique: React.FC<CategoryBoutiqueProps> = ({
   }
 
   return (
-    <section className="w-full bg-white py-16 md:py-20">
-      <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+    <section className="w-full bg-white py-12 sm:py-16 md:py-20">
+      <div className="mx-auto max-w-7xl px-3.5 sm:px-6 lg:px-8">
+
         {/* Section Header */}
-        <div className="mb-10 text-center md:mb-12">
+        <div className="mb-8 text-center sm:mb-10 md:mb-12">
           <div className="mb-3 flex items-center justify-center gap-2">
             <Sparkles className="h-4 w-4 text-amber-500" />
 
-            <span className="text-xs font-semibold uppercase tracking-[0.25em] text-amber-600">
+            <span className="text-[10px] font-semibold uppercase tracking-[0.22em] text-amber-600 sm:text-xs sm:tracking-[0.25em]">
               Signature Collections
             </span>
 
             <Sparkles className="h-4 w-4 text-amber-500" />
           </div>
 
-          <h2 className="font-serif text-3xl font-medium text-slate-900 md:text-4xl lg:text-5xl">
+          <h2 className="font-serif text-2xl font-medium text-slate-900 sm:text-3xl md:text-4xl lg:text-5xl">
             Curated for Every Occasion
           </h2>
 
-          <p className="mx-auto mt-4 max-w-2xl text-sm leading-6 text-slate-500 md:text-base">
+          <p className="mx-auto mt-3 max-w-2xl text-xs leading-5 text-slate-500 sm:mt-4 sm:text-sm sm:leading-6 md:text-base">
             Explore our signature collections, thoughtfully curated
             from the latest pieces in our boutique.
           </p>
         </div>
 
-        {/* Category Grid */}
-        <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-12 lg:gap-5">
+        {/* =========================================================
+            CATEGORY GRID
+
+            Mobile       : 2 columns
+            Small mobile : 2 columns
+            Tablet       : 2 columns
+            Desktop      : 12-column editorial layout
+        ========================================================= */}
+        <div className="grid grid-cols-2 gap-3 sm:gap-4 md:grid-cols-2 lg:grid-cols-12 lg:gap-5">
+
           {categories.map((category) => (
             <button
               key={String(category.id)}
               type="button"
               onClick={() => onSelectCategory(category.id)}
-              className={`group relative overflow-hidden rounded-2xl text-left ${category.span}`}
+              className={`group relative overflow-hidden rounded-xl text-left sm:rounded-2xl ${category.span}`}
             >
+
               {/* Image */}
-              <div className="relative aspect-[4/5] w-full overflow-hidden bg-slate-100 md:aspect-[5/4] lg:aspect-auto lg:min-h-[380px]">
+              <div
+                className="
+                  relative
+                  aspect-[4/5]
+                  w-full
+                  overflow-hidden
+                  bg-slate-100
+
+                  sm:aspect-[4/5]
+
+                  md:aspect-[5/4]
+
+                  lg:aspect-auto
+                  lg:min-h-[380px]
+                "
+              >
+
                 {category.image ? (
                   <img
                     src={getOptimizedImageUrl(category.image)}
                     alt={category.title}
                     loading="lazy"
                     onError={handleImageError}
-                    className="absolute inset-0 h-full w-full object-cover transition-transform duration-700 ease-out group-hover:scale-105"
+                    className="
+                      absolute
+                      inset-0
+                      h-full
+                      w-full
+                      object-cover
+                      transition-transform
+                      duration-700
+                      ease-out
+                      group-hover:scale-105
+                    "
                   />
                 ) : (
                   <div className="absolute inset-0 flex items-center justify-center bg-gradient-to-br from-slate-100 to-slate-200">
-                    <Sparkles className="h-10 w-10 text-slate-300" />
+                    <Sparkles className="h-8 w-8 text-slate-300 sm:h-10 sm:w-10" />
                   </div>
                 )}
 
                 {/* Image Overlay */}
-                <div className="absolute inset-0 bg-gradient-to-t from-black/75 via-black/25 to-transparent" />
+                <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/30 to-transparent" />
 
                 {/* Top Badge */}
-                <div className="absolute left-4 top-4 md:left-5 md:top-5">
-                  <span className="inline-flex items-center rounded-full border border-white/30 bg-white/15 px-3 py-1.5 text-[10px] font-medium uppercase tracking-[0.16em] text-white backdrop-blur-md">
+                <div className="absolute left-2.5 top-2.5 sm:left-4 sm:top-4 md:left-5 md:top-5">
+                  <span className="inline-flex items-center rounded-full border border-white/30 bg-white/15 px-2 py-1 text-[7px] font-medium uppercase tracking-[0.12em] text-white backdrop-blur-md sm:px-3 sm:py-1.5 sm:text-[9px] md:text-[10px] md:tracking-[0.16em]">
                     {category.tag}
                   </span>
                 </div>
 
                 {/* Product Count */}
-                <div className="absolute right-4 top-4 md:right-5 md:top-5">
-                  <span className="rounded-full bg-black/30 px-3 py-1.5 text-[10px] font-medium uppercase tracking-wider text-white backdrop-blur-md">
+                <div className="absolute right-2.5 top-2.5 sm:right-4 sm:top-4 md:right-5 md:top-5">
+                  <span className="rounded-full bg-black/30 px-2 py-1 text-[7px] font-medium uppercase tracking-wider text-white backdrop-blur-md sm:px-3 sm:py-1.5 sm:text-[9px] md:text-[10px]">
                     {category.productCount}{' '}
                     {category.productCount === 1
                       ? 'Product'
@@ -366,32 +402,43 @@ export const CategoryBoutique: React.FC<CategoryBoutiqueProps> = ({
                 </div>
 
                 {/* Content */}
-                <div className="absolute inset-x-0 bottom-0 p-5 md:p-6 lg:p-7">
-                  <div className="flex items-end justify-between gap-4">
+                <div className="absolute inset-x-0 bottom-0 p-3 sm:p-4 md:p-6 lg:p-7">
+
+                  <div className="flex items-end justify-between gap-2 sm:gap-4">
+
                     <div className="min-w-0">
-                      <h3 className="font-serif text-2xl font-medium leading-tight text-white md:text-3xl">
+
+                      {/* Title */}
+                      <h3 className="font-serif text-base font-medium leading-tight text-white sm:text-lg md:text-3xl">
                         {category.title}
                       </h3>
 
-                      <p className="mt-2 max-w-xl text-xs leading-5 text-white/80 md:text-sm">
+                      {/* Subtitle */}
+                      <p className="mt-1.5 max-w-xl text-[9px] leading-4 text-white/80 sm:text-[10px] md:mt-2 md:text-sm md:leading-5">
                         {category.subtitle}
                       </p>
 
-                      <div className="mt-4 inline-flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-white">
+                      {/* Explore Link */}
+                      <div className="mt-2 inline-flex items-center gap-1 text-[8px] font-semibold uppercase tracking-wide text-white sm:mt-3 sm:text-[9px] md:mt-4 md:gap-2 md:text-xs md:tracking-wider">
                         Explore Collection
-                        <ArrowUpRight className="h-4 w-4 transition-transform duration-300 group-hover:-translate-y-0.5 group-hover:translate-x-0.5" />
+
+                        <ArrowUpRight className="h-3 w-3 transition-transform duration-300 group-hover:-translate-y-0.5 group-hover:translate-x-0.5 sm:h-3.5 sm:w-3.5 md:h-4 md:w-4" />
                       </div>
+
                     </div>
 
-                    {/* Arrow */}
+                    {/* Desktop Arrow */}
                     <div className="hidden shrink-0 rounded-full border border-white/30 bg-white/10 p-3 backdrop-blur-md transition-all duration-300 group-hover:bg-white group-hover:text-slate-900 md:block">
                       <ArrowUpRight className="h-5 w-5" />
                     </div>
+
                   </div>
                 </div>
+
               </div>
             </button>
           ))}
+
         </div>
       </div>
     </section>

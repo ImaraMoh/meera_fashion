@@ -86,12 +86,11 @@ const getProductPrice = (product: Product): number => {
 const getOriginalPrice = (
   product: Product
 ): number | undefined => {
-  const possiblePrice =
-    Number(
-      (product as Product & {
-        originalPrice?: number | string;
-      }).originalPrice
-    );
+  const possiblePrice = Number(
+    (product as Product & {
+      originalPrice?: number | string;
+    }).originalPrice
+  );
 
   return Number.isFinite(possiblePrice) && possiblePrice > 0
     ? possiblePrice
@@ -131,7 +130,6 @@ const createHeadline = (product: Product): string => {
     return product.name || 'Meera';
   }
 
-  // Keep the visual headline short without inventing a product name.
   return words.slice(0, 2).join(' ');
 };
 
@@ -256,10 +254,6 @@ export const CinematicHero: React.FC<
    * ============================================================
    * REAL PRODUCTS
    * ============================================================
-   *
-   * Maximum 5 products are displayed.
-   *
-   * Products without a name, category or image are ignored.
    */
   const editorialProducts = useMemo(() => {
     return products
@@ -281,12 +275,10 @@ export const CinematicHero: React.FC<
   }, [products, settings]);
 
   /*
-   * Keep the active index valid when products change.
+   * Keep active index valid.
    */
   useEffect(() => {
-    if (
-      editorialProducts.length === 0
-    ) {
+    if (editorialProducts.length === 0) {
       setActiveLookIndex(0);
       return;
     }
@@ -307,11 +299,8 @@ export const CinematicHero: React.FC<
 
   /*
    * ============================================================
-   * FIND A REAL ACCESSORY PRODUCT
+   * REAL ACCESSORY PRODUCT
    * ============================================================
-   *
-   * Prefer jewellery for the right-side pairing.
-   * Otherwise use another real product.
    */
   const accessoryProduct = useMemo(() => {
     if (!activeLook) return null;
@@ -351,7 +340,7 @@ export const CinematicHero: React.FC<
 
   /*
    * ============================================================
-   * AUTOMATIC 5 SECOND SLIDER
+   * AUTOMATIC SLIDER
    * ============================================================
    */
   useEffect(() => {
@@ -415,31 +404,31 @@ export const CinematicHero: React.FC<
   if (editorialProducts.length === 0) {
     return (
       <section className="relative overflow-hidden bg-[#FFF4F7] text-[#241B20] border-b border-[#C94F7C15]">
-        <div className="min-h-[520px] flex items-center justify-center px-6">
+        <div className="min-h-[460px] sm:min-h-[520px] flex items-center justify-center px-5 sm:px-6">
           <div className="max-w-xl text-center">
-            <div className="mx-auto mb-5 w-14 h-14 rounded-full bg-white border border-[#C94F7C20] flex items-center justify-center shadow-sm">
-              <Sparkles className="w-6 h-6 text-[#9E315A]" />
+            <div className="mx-auto mb-4 sm:mb-5 w-12 h-12 sm:w-14 sm:h-14 rounded-full bg-white border border-[#C94F7C20] flex items-center justify-center shadow-sm">
+              <Sparkles className="w-5 h-5 sm:w-6 sm:h-6 text-[#9E315A]" />
             </div>
 
-            <p className="text-[10px] uppercase tracking-[0.3em] text-[#9E315A] font-bold mb-3">
+            <p className="text-[9px] sm:text-[10px] uppercase tracking-[0.3em] text-[#9E315A] font-bold mb-2 sm:mb-3">
               {settings.brandName || 'Meera Fashion'}
             </p>
 
-            <h2 className="text-3xl sm:text-4xl font-serif italic leading-tight mb-4">
+            <h2 className="text-2xl sm:text-3xl md:text-4xl font-serif italic leading-tight mb-3 sm:mb-4">
               New pieces are arriving soon
             </h2>
 
-            <p className="text-sm text-[#241B20]/65 leading-relaxed mb-6">
+            <p className="text-xs sm:text-sm text-[#241B20]/65 leading-relaxed mb-5 sm:mb-6">
               Our latest collection will appear here
               once products are available.
             </p>
 
             <button
               onClick={() => onExplore()}
-              className="inline-flex items-center gap-2 bg-[#9E315A] hover:bg-[#C94F7C] text-white px-6 py-3 rounded-full text-xs font-semibold uppercase tracking-wider transition-all"
+              className="inline-flex items-center gap-2 bg-[#9E315A] hover:bg-[#C94F7C] text-white px-5 sm:px-6 py-2.5 sm:py-3 rounded-full text-[10px] sm:text-xs font-semibold uppercase tracking-wider transition-all"
             >
               Explore Collection
-              <ArrowRight className="w-4 h-4" />
+              <ArrowRight className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
             </button>
           </div>
         </div>
@@ -450,12 +439,8 @@ export const CinematicHero: React.FC<
   return (
     <section
       className="relative overflow-hidden bg-[#FFF4F7] text-[#241B20] border-b border-[#C94F7C15]"
-      onMouseEnter={() =>
-        setIsPaused(true)
-      }
-      onMouseLeave={() =>
-        setIsPaused(false)
-      }
+      onMouseEnter={() => setIsPaused(true)}
+      onMouseLeave={() => setIsPaused(false)}
     >
       {/* Background Watermark */}
       <div className="hidden 2xl:block absolute top-1/2 right-4 -translate-y-1/2 rotate-90 whitespace-nowrap text-[120px] font-serif text-[#C94F7C08] pointer-events-none select-none uppercase font-bold tracking-tighter z-0">
@@ -465,29 +450,36 @@ export const CinematicHero: React.FC<
       </div>
 
       <div className="w-full mx-auto">
-        <div className="grid grid-cols-1 lg:grid-cols-12 min-h-[640px] xl:min-h-[680px]">
+
+        {/* ======================================================
+            MOBILE / TABLET / DESKTOP MAIN GRID
+           ====================================================== */}
+        <div className="grid grid-cols-1 lg:grid-cols-12 min-h-0 lg:min-h-[640px] xl:min-h-[680px]">
 
           {/* ======================================================
               COLUMN 1 — EDITORIAL NAVIGATION
              ====================================================== */}
-          <aside className="lg:col-span-3 border-b lg:border-b-0 lg:border-r border-[#C94F7C15] flex flex-col p-6 sm:p-8 xl:p-10 justify-between relative bg-white/40 backdrop-blur-xs z-10">
+          <aside className="lg:col-span-3 border-b lg:border-b-0 lg:border-r border-[#C94F7C15] flex flex-col p-4 sm:p-6 xl:p-10 justify-between relative bg-white/40 backdrop-blur-xs z-10">
 
+            {/* Mobile Compact Header */}
             <div>
-              {/* Metadata */}
-              <div className="flex items-center justify-between gap-2 mb-3">
-                <div className="inline-flex items-center gap-2">
-                  <span className="w-2 h-2 rounded-full bg-[#C94F7C] animate-pulse" />
 
-                  <p className="text-[10px] uppercase tracking-[0.25em] text-[#9E315A] font-bold">
+              <div className="flex items-center justify-between gap-2 mb-2.5 sm:mb-3">
+
+                <div className="inline-flex items-center gap-1.5 sm:gap-2 min-w-0">
+                  <span className="w-1.5 h-1.5 sm:w-2 sm:h-2 rounded-full bg-[#C94F7C] animate-pulse shrink-0" />
+
+                  <p className="text-[8px] sm:text-[10px] uppercase tracking-[0.2em] sm:tracking-[0.25em] text-[#9E315A] font-bold truncate">
                     Latest Collection
                   </p>
                 </div>
 
-                <div className="flex items-center gap-1.5 text-[10px] text-rose-500/80 bg-rose-100/60 px-2 py-0.5 rounded-full font-medium">
+                <div className="flex items-center gap-1 text-[8px] sm:text-[10px] text-rose-500/80 bg-rose-100/60 px-2 py-0.5 rounded-full font-medium shrink-0">
+
                   {isPaused ? (
-                    <Pause className="w-3 h-3 text-[#9E315A]" />
+                    <Pause className="w-2.5 h-2.5 sm:w-3 sm:h-3 text-[#9E315A]" />
                   ) : (
-                    <Play className="w-3 h-3 text-[#9E315A]" />
+                    <Play className="w-2.5 h-2.5 sm:w-3 sm:h-3 text-[#9E315A]" />
                   )}
 
                   <span>
@@ -498,14 +490,15 @@ export const CinematicHero: React.FC<
                       : 'Featured'}
                   </span>
                 </div>
+
               </div>
 
               {/* Main Heading */}
-              <h2 className="text-3xl sm:text-4xl font-serif italic text-[#241B20] leading-tight mb-4 tracking-tight">
+              <h2 className="text-2xl sm:text-3xl md:text-4xl font-serif italic text-[#241B20] leading-tight mb-2.5 sm:mb-4 tracking-tight">
                 Elegance Draped in Every Detail
               </h2>
 
-              <p className="text-xs sm:text-sm leading-relaxed text-[#241B20]/75 font-light mb-6">
+              <p className="text-[10px] sm:text-xs md:text-sm leading-relaxed text-[#241B20]/75 font-light mb-4 sm:mb-6 max-w-2xl">
                 Discover the latest pieces from{' '}
                 {settings.brandName ||
                   'Meera Fashion'}
@@ -514,57 +507,62 @@ export const CinematicHero: React.FC<
               </p>
 
               {/* Buttons */}
-              <div className="flex flex-col sm:flex-row lg:flex-col gap-2.5 mb-6">
+              <div className="flex flex-row sm:flex-row lg:flex-col gap-2 mb-4 sm:mb-6">
+
                 <button
                   onClick={() =>
                     onExplore(
                       activeLook?.categoryKey
                     )
                   }
-                  className="flex items-center justify-between bg-[#9E315A] hover:bg-[#C94F7C] text-white px-5 py-3 rounded-full text-xs font-semibold tracking-wider uppercase transition-all shadow-sm group cursor-pointer"
+                  className="flex-1 lg:flex-none flex items-center justify-between bg-[#9E315A] hover:bg-[#C94F7C] text-white px-3.5 sm:px-5 py-2.5 sm:py-3 rounded-full text-[9px] sm:text-xs font-semibold tracking-wider uppercase transition-all shadow-sm group cursor-pointer"
                 >
                   <span>
                     Explore Collection
                   </span>
 
-                  <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-1 transition-transform" />
+                  <ArrowRight className="w-3 h-3 sm:w-3.5 sm:h-3.5 group-hover:translate-x-1 transition-transform" />
                 </button>
 
                 <button
                   onClick={onOpenWhatsApp}
-                  className="flex items-center justify-center gap-2 bg-white hover:bg-rose-50 text-[#241B20] border border-[#C94F7C30] px-4 py-2.5 rounded-full text-xs font-semibold tracking-wider transition-colors cursor-pointer"
+                  className="flex-1 lg:flex-none flex items-center justify-center gap-1.5 sm:gap-2 bg-white hover:bg-rose-50 text-[#241B20] border border-[#C94F7C30] px-3 sm:px-4 py-2.5 sm:py-3 rounded-full text-[9px] sm:text-xs font-semibold tracking-wider transition-colors cursor-pointer"
                 >
-                  <MessageCircle className="w-3.5 h-3.5 text-[#25D366] fill-[#25D366]" />
+                  <MessageCircle className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-[#25D366] fill-[#25D366]" />
 
                   <span>
                     WhatsApp Stylist
                   </span>
                 </button>
+
               </div>
             </div>
 
             {/* ==================================================
                 PRODUCT NAVIGATION
                ================================================== */}
-            <div className="space-y-3.5 my-4 py-4 border-y border-[#C94F7C10]">
+            <div className="space-y-2 sm:space-y-3.5 my-2 sm:my-4 py-2.5 sm:py-4 border-y border-[#C94F7C10]">
 
               <div className="flex items-center justify-between">
-                <p className="text-[9px] uppercase tracking-widest text-[#9E315A]/80 font-bold">
+
+                <p className="text-[8px] sm:text-[9px] uppercase tracking-widest text-[#9E315A]/80 font-bold">
                   Latest Pieces
                 </p>
 
-                <span className="text-[10px] font-mono text-[#9E315A] font-bold">
+                <span className="text-[9px] sm:text-[10px] font-mono text-[#9E315A] font-bold">
                   0{activeLookIndex + 1} / 0
                   {editorialProducts.length}
                 </span>
+
               </div>
 
-              <div className="space-y-2">
+              {/* Mobile: horizontal product navigation */}
+              <div className="flex lg:flex-col gap-1.5 sm:gap-2 overflow-x-auto lg:overflow-visible scrollbar-none pb-0.5">
+
                 {editorialProducts.map(
                   (look, idx) => {
                     const isActive =
-                      idx ===
-                      activeLookIndex;
+                      idx === activeLookIndex;
 
                     return (
                       <button
@@ -577,39 +575,45 @@ export const CinematicHero: React.FC<
                             idx
                           )
                         }
-                        className={`w-full flex items-center justify-between text-left transition-all duration-300 group cursor-pointer p-1.5 rounded-lg ${
+                        className={`shrink-0 lg:w-full flex items-center justify-between text-left transition-all duration-300 group cursor-pointer p-1.5 sm:p-2 lg:p-1.5 rounded-lg ${
                           isActive
                             ? 'bg-[#FFF0F5] text-[#9E315A] font-bold'
                             : 'text-[#241B20]/60 hover:text-[#9E315A] hover:bg-rose-50/50'
                         }`}
                       >
-                        <div className="flex items-center gap-2.5 min-w-0">
+
+                        <div className="flex items-center gap-1.5 sm:gap-2.5 min-w-0 max-w-[150px] sm:max-w-[200px] lg:max-w-none">
+
                           <div
-                            className={`h-1.5 rounded-full transition-all duration-500 ${
+                            className={`h-1.5 rounded-full transition-all duration-500 shrink-0 ${
                               isActive
-                                ? 'w-5 bg-[#C94F7C]'
+                                ? 'w-4 sm:w-5 bg-[#C94F7C]'
                                 : 'w-1.5 bg-rose-200 group-hover:w-3'
                             }`}
                           />
 
-                          <span className="text-[11px] tracking-wide truncate">
+                          <span className="text-[9px] sm:text-[11px] tracking-wide truncate">
                             {look.title}
                           </span>
+
                         </div>
 
-                        <span className="text-[10px] font-mono opacity-60 shrink-0 ml-2">
+                        <span className="text-[8px] sm:text-[10px] font-mono opacity-60 shrink-0 ml-1.5">
                           {look.price}
                         </span>
+
                       </button>
                     );
                   }
                 )}
+
               </div>
             </div>
 
             {/* Location / Status */}
-            <div className="flex items-center justify-between text-[10px] uppercase tracking-widest pt-2 text-[#241B20]/60">
-              <div className="flex items-center gap-2 min-w-0">
+            <div className="flex items-center justify-between text-[8px] sm:text-[10px] uppercase tracking-widest pt-1 sm:pt-2 text-[#241B20]/60">
+
+              <div className="flex items-center gap-1.5 sm:gap-2 min-w-0">
                 <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 shrink-0" />
 
                 <span className="truncate">
@@ -618,20 +622,23 @@ export const CinematicHero: React.FC<
                 </span>
               </div>
 
-              <span className="text-rose-400 font-serif italic lowercase text-xs shrink-0 ml-2">
+              <span className="text-rose-400 font-serif italic lowercase text-[9px] sm:text-xs shrink-0 ml-2">
                 ready for you
               </span>
+
             </div>
+
           </aside>
 
           {/* ======================================================
               COLUMN 2 — REAL PRODUCT HERO
              ====================================================== */}
-          <section className="lg:col-span-6 relative overflow-hidden bg-[#E8CFAF15] flex items-center justify-center p-3 sm:p-6 xl:p-10">
+          <section className="lg:col-span-6 relative overflow-hidden bg-[#E8CFAF15] flex items-center justify-center p-2.5 sm:p-4 md:p-6 xl:p-10">
 
-            <div className="relative w-full h-[460px] sm:h-[530px] xl:h-[580px] rounded-[36px] sm:rounded-[60px] xl:rounded-[72px] overflow-hidden shadow-2xl group border-2 border-white/80">
+            <div className="relative w-full h-[390px] sm:h-[500px] md:h-[560px] xl:h-[580px] rounded-[28px] sm:rounded-[45px] xl:rounded-[72px] overflow-hidden shadow-2xl group border-2 border-white/80">
 
               <AnimatePresence mode="wait">
+
                 {activeLook && (
                   <motion.div
                     key={
@@ -656,6 +663,7 @@ export const CinematicHero: React.FC<
                     }}
                     className="absolute inset-0 w-full h-full"
                   >
+
                     {/* Product Image */}
                     <img
                       src={getOptimizedImageUrl(
@@ -683,40 +691,45 @@ export const CinematicHero: React.FC<
                     <div className="absolute inset-0 bg-gradient-to-t from-[#241B20]/90 via-[#241B20]/30 to-transparent z-10" />
 
                     {/* Top Badges */}
-                    <div className="absolute top-5 left-5 right-5 z-20 flex items-center justify-between text-white text-xs gap-2">
+                    <div className="absolute top-3 left-3 right-3 sm:top-5 sm:left-5 sm:right-5 z-20 flex items-center justify-between text-white text-xs gap-2">
 
-                      <span className="bg-white/20 backdrop-blur-md border border-white/30 px-3.5 py-1 rounded-full text-[10px] uppercase tracking-[0.2em] font-semibold truncate max-w-[60%]">
+                      <span className="bg-white/20 backdrop-blur-md border border-white/30 px-2.5 sm:px-3.5 py-1 sm:py-1.5 rounded-full text-[8px] sm:text-[10px] uppercase tracking-[0.15em] sm:tracking-[0.2em] font-semibold truncate max-w-[55%]">
                         {activeLook.heroCategory}
                       </span>
 
-                      <div className="flex items-center gap-1.5 bg-[#241B20]/50 backdrop-blur-md px-3 py-1 rounded-full text-[11px] border border-white/20 shrink-0">
-                        <Sparkles className="w-3 h-3 text-[#E8CFAF]" />
+                      <div className="flex items-center gap-1 sm:gap-1.5 bg-[#241B20]/50 backdrop-blur-md px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-full text-[8px] sm:text-[11px] border border-white/20 shrink-0">
+
+                        <Sparkles className="w-2.5 h-2.5 sm:w-3 sm:h-3 text-[#E8CFAF]" />
 
                         <span>
                           Featured
                         </span>
+
                       </div>
+
                     </div>
 
                     {/* Bottom Product Details */}
-                    <div className="absolute bottom-6 sm:bottom-10 left-5 sm:left-8 right-5 sm:right-8 z-20 text-white">
+                    <div className="absolute bottom-4 sm:bottom-7 md:bottom-10 left-4 sm:left-6 md:left-8 right-4 sm:right-6 md:right-8 z-20 text-white">
 
-                      <p className="text-[11px] uppercase tracking-[0.3em] font-light text-[#E8CFAF] mb-1">
+                      <p className="text-[8px] sm:text-[10px] md:text-[11px] uppercase tracking-[0.2em] sm:tracking-[0.3em] font-light text-[#E8CFAF] mb-1">
                         {activeLook.heroSubheadline}
                       </p>
 
-                      <h1 className="text-4xl sm:text-6xl xl:text-7xl font-serif mb-2 leading-none tracking-tight">
+                      <h1 className="text-3xl sm:text-5xl md:text-6xl xl:text-7xl font-serif mb-1.5 sm:mb-2 leading-none tracking-tight line-clamp-2">
                         {activeLook.heroHeadline}
                       </h1>
 
-                      <div className="flex flex-wrap items-center justify-between gap-2 pt-2 border-t border-white/20">
+                      <div className="flex flex-wrap items-center justify-between gap-1.5 sm:gap-2 pt-2 border-t border-white/20">
 
                         <div className="min-w-0">
-                          <span className="text-xs sm:text-sm font-semibold text-white/95 block line-clamp-1">
+
+                          <span className="text-[9px] sm:text-xs md:text-sm font-semibold text-white/95 block line-clamp-1">
                             {activeLook.title}
                           </span>
 
-                          <div className="flex flex-wrap items-center gap-2 text-[11px] font-mono mt-0.5">
+                          <div className="flex flex-wrap items-center gap-1.5 sm:gap-2 text-[9px] sm:text-[11px] font-mono mt-0.5">
+
                             <span className="text-rose-200">
                               {activeLook.price}
                             </span>
@@ -732,6 +745,7 @@ export const CinematicHero: React.FC<
                                 {activeLook.discount}% OFF
                               </span>
                             )}
+
                           </div>
                         </div>
 
@@ -741,28 +755,31 @@ export const CinematicHero: React.FC<
                               activeLook.categoryKey
                             )
                           }
-                          className="inline-flex items-center gap-1.5 text-xs text-[#E8CFAF] hover:text-white font-bold transition-colors bg-white/10 hover:bg-white/20 px-3 py-1.5 rounded-full backdrop-blur-sm cursor-pointer shrink-0"
+                          className="inline-flex items-center gap-1 text-[9px] sm:text-xs text-[#E8CFAF] hover:text-white font-bold transition-colors bg-white/10 hover:bg-white/20 px-2.5 sm:px-3 py-1.5 rounded-full backdrop-blur-sm cursor-pointer shrink-0"
                         >
                           <span>
                             View Piece
                           </span>
 
-                          <ChevronRight className="w-3.5 h-3.5" />
+                          <ChevronRight className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
                         </button>
+
                       </div>
                     </div>
+
                   </motion.div>
                 )}
+
               </AnimatePresence>
 
               {/* Previous */}
               {editorialProducts.length > 1 && (
                 <button
                   onClick={handlePrevLook}
-                  className="absolute left-3 top-1/2 -translate-y-1/2 z-30 w-9 h-9 rounded-full bg-white/20 hover:bg-white/40 backdrop-blur-md border border-white/30 flex items-center justify-center text-white transition-all hover:scale-105 cursor-pointer opacity-70 group-hover:opacity-100"
+                  className="absolute left-2 sm:left-3 top-1/2 -translate-y-1/2 z-30 w-8 h-8 sm:w-9 sm:h-9 rounded-full bg-white/20 hover:bg-white/40 backdrop-blur-md border border-white/30 flex items-center justify-center text-white transition-all hover:scale-105 cursor-pointer opacity-80 md:opacity-70 group-hover:opacity-100"
                   aria-label="Previous Product"
                 >
-                  <ChevronLeft className="w-5 h-5" />
+                  <ChevronLeft className="w-4 h-4 sm:w-5 sm:h-5" />
                 </button>
               )}
 
@@ -770,16 +787,17 @@ export const CinematicHero: React.FC<
               {editorialProducts.length > 1 && (
                 <button
                   onClick={handleNextLook}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 z-30 w-9 h-9 rounded-full bg-white/20 hover:bg-white/40 backdrop-blur-md border border-white/30 flex items-center justify-center text-white transition-all hover:scale-105 cursor-pointer opacity-70 group-hover:opacity-100"
+                  className="absolute right-2 sm:right-3 top-1/2 -translate-y-1/2 z-30 w-8 h-8 sm:w-9 sm:h-9 rounded-full bg-white/20 hover:bg-white/40 backdrop-blur-md border border-white/30 flex items-center justify-center text-white transition-all hover:scale-105 cursor-pointer opacity-80 md:opacity-70 group-hover:opacity-100"
                   aria-label="Next Product"
                 >
-                  <ChevronRight className="w-5 h-5" />
+                  <ChevronRight className="w-4 h-4 sm:w-5 sm:h-5" />
                 </button>
               )}
 
               {/* Progress Bar */}
               {editorialProducts.length > 1 && (
-                <div className="absolute bottom-0 left-0 right-0 h-1 bg-white/20 z-30 overflow-hidden">
+                <div className="absolute bottom-0 left-0 right-0 h-0.5 sm:h-1 bg-white/20 z-30 overflow-hidden">
+
                   <motion.div
                     key={activeLookIndex}
                     initial={{
@@ -796,8 +814,10 @@ export const CinematicHero: React.FC<
                     }}
                     className="h-full bg-gradient-to-r from-[#E8CFAF] to-[#C94F7C]"
                   />
+
                 </div>
               )}
+
             </div>
           </section>
 
@@ -806,27 +826,28 @@ export const CinematicHero: React.FC<
              ====================================================== */}
           <aside className="lg:col-span-3 flex flex-col bg-white border-t lg:border-t-0 lg:border-l border-[#C94F7C15] justify-between">
 
-            <div className="p-5 sm:p-7 flex-1 flex flex-col justify-between space-y-4">
+            <div className="p-4 sm:p-5 md:p-7 flex-1 flex flex-col justify-between space-y-3 sm:space-y-4">
 
               {/* Header */}
-              <div className="flex justify-between items-center border-b border-[#C94F7C15] pb-3">
+              <div className="flex justify-between items-center border-b border-[#C94F7C15] pb-2.5 sm:pb-3">
 
                 <div>
-                  <span className="text-[10px] uppercase tracking-widest font-bold text-[#9E315A] block">
+                  <span className="text-[8px] sm:text-[10px] uppercase tracking-widest font-bold text-[#9E315A] block">
                     Curated Pairing
                   </span>
 
-                  <span className="text-xs text-[#5A4550] font-medium">
+                  <span className="text-[10px] sm:text-xs text-[#5A4550] font-medium">
                     From our collection
                   </span>
                 </div>
 
-                <div className="flex items-center gap-1 text-[#9E315A] bg-rose-50 px-2 py-0.5 rounded-full text-xs font-bold font-serif italic">
+                <div className="flex items-center gap-1 text-[#9E315A] bg-rose-50 px-2 py-0.5 rounded-full text-[10px] sm:text-xs font-bold font-serif italic">
                   <span>
                     Look 0
                     {activeLookIndex + 1}
                   </span>
                 </div>
+
               </div>
 
               {/* Real Accessory/Product */}
@@ -837,17 +858,20 @@ export const CinematicHero: React.FC<
                       accessoryProduct.categoryKey
                     )
                   }
-                  className="group cursor-pointer bg-[#FFF4F7]/70 hover:bg-[#FFF0F4] p-3.5 rounded-2xl border border-[#C94F7C20] transition-all duration-300 shadow-2xs hover:shadow-md"
+                  className="group cursor-pointer bg-[#FFF4F7]/70 hover:bg-[#FFF0F4] p-2.5 sm:p-3.5 rounded-xl sm:rounded-2xl border border-[#C94F7C20] transition-all duration-300 shadow-2xs hover:shadow-md"
                 >
-                  <div className="flex items-center gap-2 mb-2">
-                    <Gem className="w-3.5 h-3.5 text-[#9E315A]" />
 
-                    <span className="text-[10px] uppercase font-bold tracking-wider text-[#9E315A]">
+                  <div className="flex items-center gap-1.5 mb-1.5 sm:mb-2">
+
+                    <Gem className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-[#9E315A]" />
+
+                    <span className="text-[8px] sm:text-[10px] uppercase font-bold tracking-wider text-[#9E315A]">
                       Recommended Match
                     </span>
+
                   </div>
 
-                  <div className="aspect-[4/3] rounded-xl overflow-hidden bg-[#F8DDE7] mb-3 relative border border-rose-200/80">
+                  <div className="aspect-[4/3] rounded-lg sm:rounded-xl overflow-hidden bg-[#F8DDE7] mb-2 sm:mb-3 relative border border-rose-200/80">
 
                     <img
                       src={getOptimizedImageUrl(
@@ -863,38 +887,48 @@ export const CinematicHero: React.FC<
                       decoding="async"
                       referrerPolicy="no-referrer"
                       onError={(e) => {
-                        const img = e.currentTarget;
+                        const img =
+                          e.currentTarget;
 
-                        if (!img.dataset.fallbackApplied) {
-                          img.dataset.fallbackApplied = 'true';
+                        if (
+                          !img.dataset
+                            .fallbackApplied
+                        ) {
+                          img.dataset.fallbackApplied =
+                            'true';
 
-                          handleImageError(e, 'jewellery');
+                          handleImageError(
+                            e,
+                            'jewellery'
+                          );
                         }
                       }}
                       className="w-full h-full object-cover group-hover:scale-105 transition-all duration-500"
                     />
 
-                    <div className="absolute top-2 right-2 bg-white/90 backdrop-blur-xs text-[#9E315A] text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-md shadow-xs">
+                    <div className="absolute top-1.5 right-1.5 sm:top-2 sm:right-2 bg-white/90 backdrop-blur-xs text-[#9E315A] text-[8px] sm:text-[10px] font-bold uppercase tracking-wider px-1.5 sm:px-2 py-0.5 rounded-md shadow-xs">
                       {
                         accessoryProduct.price
                       }
                     </div>
+
                   </div>
 
                   <div>
-                    <h4 className="text-xs font-serif font-bold text-[#241B20] group-hover:text-[#9E315A] transition-colors line-clamp-1">
+
+                    <h4 className="text-[10px] sm:text-xs font-serif font-bold text-[#241B20] group-hover:text-[#9E315A] transition-colors line-clamp-1">
                       {
                         accessoryProduct.title
                       }
                     </h4>
 
-                    <p className="text-[11px] text-[#5A4550] line-clamp-2 mt-0.5">
+                    <p className="text-[9px] sm:text-[11px] text-[#5A4550] line-clamp-2 mt-0.5">
                       {
                         accessoryProduct.subtitle
                       }
                     </p>
 
-                    <div className="flex items-center justify-between mt-2 pt-2 border-t border-rose-200/50 text-[10px]">
+                    <div className="flex items-center justify-between mt-1.5 sm:mt-2 pt-1.5 sm:pt-2 border-t border-rose-200/50 text-[8px] sm:text-[10px]">
 
                       <span className="text-[#8C5D6C] font-medium">
                         {
@@ -905,73 +939,89 @@ export const CinematicHero: React.FC<
                       <span className="text-[#9E315A] font-bold group-hover:translate-x-0.5 transition-transform flex items-center gap-0.5">
                         Explore
 
-                        <ChevronRight className="w-3 h-3" />
+                        <ChevronRight className="w-2.5 h-2.5 sm:w-3 sm:h-3" />
                       </span>
+
                     </div>
                   </div>
+
                 </div>
               ) : (
-                <div className="p-5 rounded-2xl bg-[#FFF9FA] border border-rose-200/60 text-center">
-                  <Gem className="w-6 h-6 text-[#9E315A] mx-auto mb-3" />
+                <div className="p-4 sm:p-5 rounded-xl sm:rounded-2xl bg-[#FFF9FA] border border-rose-200/60 text-center">
 
-                  <p className="text-xs font-serif font-bold text-[#241B20]">
+                  <Gem className="w-5 h-5 sm:w-6 sm:h-6 text-[#9E315A] mx-auto mb-2 sm:mb-3" />
+
+                  <p className="text-[10px] sm:text-xs font-serif font-bold text-[#241B20]">
                     More pieces coming soon
                   </p>
 
-                  <p className="text-[11px] text-[#6C5662] mt-1">
+                  <p className="text-[9px] sm:text-[11px] text-[#6C5662] mt-1">
                     Explore our collection for more
                     matching pieces.
                   </p>
+
                 </div>
               )}
 
               {/* Product Note */}
               {activeLook && (
-                <div className="p-3 rounded-2xl bg-[#FFF9FA] border border-rose-200/60 text-xs space-y-1">
+                <div className="p-2.5 sm:p-3 rounded-xl sm:rounded-2xl bg-[#FFF9FA] border border-rose-200/60 text-xs space-y-1">
 
-                  <div className="flex items-center gap-1.5 text-[#9E315A] font-semibold text-[11px]">
-                    <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+                  <div className="flex items-center gap-1.5 text-[#9E315A] font-semibold text-[9px] sm:text-[11px]">
+
+                    <CheckCircle2 className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-emerald-600 shrink-0" />
 
                     <span>
                       Featured Product
                     </span>
+
                   </div>
 
-                  <p className="text-[11px] text-[#6C5662] leading-relaxed italic line-clamp-4">
+                  <p className="text-[9px] sm:text-[11px] text-[#6C5662] leading-relaxed italic line-clamp-3 sm:line-clamp-4">
                     "{activeLook.curatorNote}"
                   </p>
+
                 </div>
               )}
+
             </div>
 
             {/* WhatsApp */}
             <div
               onClick={onOpenWhatsApp}
-              className="p-5 bg-gradient-to-r from-[#C94F7C] to-[#9E315A] text-white flex items-center justify-between cursor-pointer hover:from-[#9E315A] hover:to-[#88284C] transition-all duration-300 shadow-md group"
+              className="p-3.5 sm:p-5 bg-gradient-to-r from-[#C94F7C] to-[#9E315A] text-white flex items-center justify-between cursor-pointer hover:from-[#9E315A] hover:to-[#88284C] transition-all duration-300 shadow-md group"
             >
-              <div className="flex flex-col">
 
-                <span className="text-[9px] uppercase tracking-[0.2em] mb-0.5 font-bold text-rose-100">
+              <div className="flex flex-col min-w-0">
+
+                <span className="text-[8px] sm:text-[9px] uppercase tracking-[0.15em] sm:tracking-[0.2em] mb-0.5 font-bold text-rose-100">
                   Instant Styling &amp; Advice
                 </span>
 
-                <span className="text-sm font-serif italic text-white flex items-center gap-1.5">
+                <span className="text-xs sm:text-sm font-serif italic text-white flex items-center gap-1.5">
 
-                  <MessageCircle className="w-4 h-4 fill-white shrink-0" />
+                  <MessageCircle className="w-3.5 h-3.5 sm:w-4 sm:h-4 fill-white shrink-0" />
 
-                  <span>
+                  <span className="truncate">
                     Enquire on WhatsApp
                   </span>
+
                 </span>
+
               </div>
 
-              <div className="w-8 h-8 rounded-full bg-white/20 flex items-center justify-center group-hover:translate-x-1 transition-transform">
-                <ArrowRight className="w-4 h-4 text-white" />
+              <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-white/20 flex items-center justify-center group-hover:translate-x-1 transition-transform shrink-0">
+                <ArrowRight className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-white" />
               </div>
+
             </div>
+
           </aside>
+
         </div>
       </div>
     </section>
   );
 };
+
+export default CinematicHero;

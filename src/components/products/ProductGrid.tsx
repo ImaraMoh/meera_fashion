@@ -466,12 +466,17 @@ export const ProductGrid: React.FC<ProductGridProps> = ({
           <div className="w-14 h-14 rounded-full bg-rose-100 text-[#9E315A] flex items-center justify-center mx-auto mb-4">
             <ShoppingBag className="w-7 h-7" />
           </div>
+
           <p className="text-lg font-serif font-bold text-[#241B20] mb-1">
             No pieces found matching this filter
           </p>
+
           <p className="text-xs sm:text-sm text-[#6C5662] max-w-md mx-auto mb-6">
-            We could not find any items matching your selected criteria in {activeCategoryMeta.label}. Reset your filters or message our London boutique on WhatsApp for bespoke requests.
+            We could not find any items matching your selected criteria in{' '}
+            {activeCategoryMeta.label}. Reset your filters or message our London
+            boutique on WhatsApp for bespoke requests.
           </p>
+
           <div className="flex items-center justify-center gap-3">
             <button
               onClick={resetAllFilters}
@@ -479,6 +484,7 @@ export const ProductGrid: React.FC<ProductGridProps> = ({
             >
               Reset Filters
             </button>
+
             <button
               onClick={() => {
                 onSelectCategory('all');
@@ -492,7 +498,14 @@ export const ProductGrid: React.FC<ProductGridProps> = ({
         </div>
       ) : (
         <div className="space-y-8">
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 sm:gap-6">
+
+          {/* Product Grid
+              Mobile: 2 columns
+              Small: 2 columns
+              Medium: 3 columns
+              Large: 4 columns
+          */}
+          <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-6">
             {paginatedProducts.map((product) => (
               <ProductCard
                 key={product.id}
@@ -509,17 +522,25 @@ export const ProductGrid: React.FC<ProductGridProps> = ({
 
           {/* Luxury Pagination & Set Navigator */}
           <div className="mt-8 pt-6 border-t border-rose-200/60 flex flex-col sm:flex-row items-center justify-between gap-4 bg-white/80 backdrop-blur-xs p-4 sm:p-5 rounded-2xl border border-rose-100 shadow-xs">
-            
+
             {/* Left: Showing items text */}
             <div className="text-xs text-[#6C5662] font-medium text-center sm:text-left">
-              Showing <span className="font-bold text-[#241B20]">{startItemNumber}–{endItemNumber}</span> of{' '}
-              <span className="font-bold text-[#241B20]">{filteredProducts.length}</span> curated pieces
+              Showing{' '}
+              <span className="font-bold text-[#241B20]">
+                {startItemNumber}–{endItemNumber}
+              </span>{' '}
+              of{' '}
+              <span className="font-bold text-[#241B20]">
+                {filteredProducts.length}
+              </span>{' '}
+              curated pieces
             </div>
 
-            {/* Middle: Pagination Navigation with Next & Prev Arrows */}
+            {/* Pagination */}
             {totalPages > 1 && (
               <div className="flex items-center gap-1.5 sm:gap-2">
-                {/* Previous Set Arrow Button */}
+
+                {/* Previous */}
                 <button
                   onClick={() => handlePageChange(currentPage - 1)}
                   disabled={currentPage === 1}
@@ -534,10 +555,14 @@ export const ProductGrid: React.FC<ProductGridProps> = ({
                   <span className="hidden sm:inline">Previous</span>
                 </button>
 
-                {/* Numbered Page Buttons */}
+                {/* Page Numbers */}
                 <div className="flex items-center gap-1">
-                  {Array.from({ length: totalPages }, (_, i) => i + 1).map((pageNum) => {
+                  {Array.from(
+                    { length: totalPages },
+                    (_, i) => i + 1
+                  ).map((pageNum) => {
                     const isActive = pageNum === currentPage;
+
                     return (
                       <button
                         key={pageNum}
@@ -554,7 +579,7 @@ export const ProductGrid: React.FC<ProductGridProps> = ({
                   })}
                 </div>
 
-                {/* Next Set Arrow Button */}
+                {/* Next */}
                 <button
                   onClick={() => handlePageChange(currentPage + 1)}
                   disabled={currentPage === totalPages}
@@ -571,9 +596,12 @@ export const ProductGrid: React.FC<ProductGridProps> = ({
               </div>
             )}
 
-            {/* Right: Items Per Page Quick Selection */}
+            {/* Items Per Page */}
             <div className="flex items-center gap-2 text-xs text-[#6C5662]">
-              <span className="hidden md:inline">View per page:</span>
+              <span className="hidden md:inline">
+                View per page:
+              </span>
+
               <div className="inline-flex rounded-lg border border-rose-200 bg-white p-0.5 shadow-2xs">
                 {[8, 16, 24, 32, 999].map((size) => (
                   <button
